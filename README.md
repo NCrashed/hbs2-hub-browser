@@ -16,8 +16,10 @@ The design is [PEP-24](https://github.com/NCrashed/hbs2/blob/master/docs/drafts/
 Phase 1, reading:
 
 - an **hbs2** tab in a repository's navigation;
-- on `/issues` and `/pulls`, the open hbs2 threads of that kind, above
-  GitHub's own list;
+- on `/issues` and `/pulls`, the hbs2 threads in GitHub's own list
+  panel, each marked **hbs2**, following the Open/Closed tab and the
+  search (state, `label:` and words in the title), with `+N hbs2` on the
+  Open and Closed counts;
 - a repository page with every hbs2 issue and pull request;
 - a thread page: title, status, labels, body, comments, and for a pull
   request its coordinates and diff, each item attributed to the key that
