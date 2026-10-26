@@ -144,6 +144,14 @@
   display: flex; align-items: center; gap: 8px; padding: 8px 16px; font-size: 12px;
   background: var(--bgColor-muted, #f6f8fa); border-bottom: 1px solid var(--borderColor-default, #d1d9e0);
 }
+.hbs2-fold {
+  display: inline-flex; padding: 2px; margin: 0 -4px; border: 0; border-radius: 6px; cursor: pointer;
+  color: var(--fgColor-muted, #59636e); background: none;
+}
+.hbs2-fold:hover { background: var(--bgColor-neutral-muted, #818b981f); }
+.hbs2-fold svg { fill: currentColor; transition: transform 0.1s; }
+.hbs2-fold.is-folded svg { transform: rotate(-90deg); }
+.hbs2-file-head:has(.is-folded) { border-bottom: 0; }
 .hbs2-file-head strong { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fgColor-default, #1f2328); }
 .hbs2-file-head .hbs2-add, .hbs2-file-head .hbs2-del { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .hbs2-dtable { width: 100%; border-collapse: collapse; font: 12px/20px ui-monospace, SFMono-Regular, Menlo, monospace; }

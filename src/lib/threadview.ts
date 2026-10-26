@@ -29,6 +29,7 @@ export const ICONS: Record<string, string[]> = {
   "pr-merged": ["M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z"],
   "pr-closed": ["M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 5.5a.75.75 0 0 1 .75.75v3.378a2.251 2.251 0 1 1-1.5 0V7.25a.75.75 0 0 1 .75-.75Zm-2.03-5.273a.75.75 0 0 1 1.06 0l.97.97.97-.97a.748.748 0 0 1 1.265.332.75.75 0 0 1-.205.729l-.97.97.97.97a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018l-.97-.97-.97.97a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734l.97-.97-.97-.97a.75.75 0 0 1 0-1.06ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z"],
   comment: ["M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h4.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"],
+  "chevron-down": ["M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"],
   file: ["M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"],
 };
 
@@ -249,11 +250,23 @@ function fileBox(f: DiffFile): HTMLElement {
         el("td", { class: "hbs2-code" }, l.kind === "note" ? l.text : sign + l.text)));
     }
   }
+  const content = f.binary ? el("div", { class: "hbs2-c-body hbs2-muted" }, "Binary file not shown.")
+                           : el("table", { class: "hbs2-dtable" }, el("tbody", {}, ...rows));
+  // The chevron folds the file away, as on GitHub, for a long change
+  // where one file is already read.
+  const fold = el("button", { type: "button", class: "hbs2-fold", "aria-expanded": "true", title: "Collapse file" },
+    iconEl("chevron-down"));
+  fold.addEventListener("click", () => {
+    content.hidden = !content.hidden;
+    fold.setAttribute("aria-expanded", String(!content.hidden));
+    fold.title = content.hidden ? "Expand file" : "Collapse file";
+    fold.classList.toggle("is-folded", content.hidden);
+  });
   return el("div", { class: "hbs2-file" },
     el("div", { class: "hbs2-file-head" },
+      fold,
       el("span", { class: "hbs2-add" }, `+${f.adds}`), " ", el("span", { class: "hbs2-del" }, `-${f.dels}`), " ",
       el("strong", {}, fileName(f)),
       f.change !== "modified" ? el("span", { class: "hbs2-c-badge" }, f.change) : null),
-    f.binary ? el("div", { class: "hbs2-c-body hbs2-muted" }, "Binary file not shown.")
-             : el("table", { class: "hbs2-dtable" }, el("tbody", {}, ...rows)));
+    content);
 }
