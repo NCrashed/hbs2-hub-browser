@@ -17,7 +17,7 @@ import { asIndex, asThread } from "./lib/docs.ts";
 import type { IndexRow } from "./lib/docs.ts";
 import { el } from "./lib/dom.ts";
 import { ago, filterRows, parseQuery } from "./lib/query.ts";
-import { threadView } from "./lib/threadview.ts";
+import { iconEl, stateLook, threadView } from "./lib/threadview.ts";
 
 const MARK = "data-hbs2-hub";
 
@@ -217,7 +217,7 @@ function rowEl(t: IndexRow, kind: "issue" | "pr", key: string, gh: string): HTML
   const title = el("a", { href: `#hbs2/${kind}/${t.number ?? ""}`, class: "hbs2-title" }, t.redacted ? "(redacted)" : t.title ?? "");
   title.addEventListener("click", go);
   return el("li", { class: "hbs2-row" },
-    stateIcon(t.status),
+    stateIcon(kind, t.status),
     el("div", { class: "hbs2-main" },
       el("div", { class: "hbs2-head" },
         title,
@@ -231,38 +231,15 @@ function rowEl(t: IndexRow, kind: "issue" | "pr", key: string, gh: string): HTML
       t.comments > 0 ? commentIcon() : "", t.comments > 0 ? String(t.comments) : ""));
 }
 
-// Octicons (MIT, GitHub), drawn with the DOM API rather than parsed markup.
-const ICONS: Record<string, string[]> = {
-  open: ["M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z",
-         "M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"],
-  closed: ["M11.28 6.78a.75.75 0 0 0-1.06-1.06L7.25 8.69 5.78 7.22a.75.75 0 0 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0l3.5-3.5Z",
-           "M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0Zm-1.5 0a6.5 6.5 0 1 0-13 0 6.5 6.5 0 0 0 13 0Z"],
-  comment: ["M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h4.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"],
-};
-
-function svg(paths: string[], cls: string): SVGSVGElement {
-  const ns = "http://www.w3.org/2000/svg";
-  const s = document.createElementNS(ns, "svg");
-  s.setAttribute("viewBox", "0 0 16 16");
-  s.setAttribute("width", "16");
-  s.setAttribute("height", "16");
-  if (cls) s.setAttribute("class", cls);
-  s.setAttribute("aria-hidden", "true");
-  for (const d of paths) {
-    const p = document.createElementNS(ns, "path");
-    p.setAttribute("d", d);
-    s.append(p);
-  }
-  return s;
-}
-
-function stateIcon(status: string): HTMLElement {
-  const s = status === "open" ? "open" : "closed";
-  return el("div", { class: `hbs2-icon ${status === "open" ? "is-open" : "is-done"}`, title: status }, svg(ICONS[s]!, ""));
+function stateIcon(kind: "issue" | "pr", status: string): HTMLElement {
+  const look = stateLook(kind, status);
+  return el("div", { class: `hbs2-icon ${look.cls}`, title: status }, iconEl(look.icon));
 }
 
 function commentIcon(): SVGSVGElement {
-  return svg(ICONS["comment"]!, "hbs2-comment-icon");
+  const s = iconEl("comment");
+  s.setAttribute("class", "hbs2-comment-icon");
+  return s;
 }
 
 // When GitHub's list is not there (an older page layout), a box above the page.

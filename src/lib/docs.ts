@@ -54,7 +54,10 @@ export interface ThreadDoc {
     onto: string;
     base: string;
     tip: string;
+    source: string | null;
+    source_ref: string | null;
     merge_commit: string | null;
+    merged_into?: string | null;
     diff?: { availability: string; truncated: boolean; text: string };
   };
 }

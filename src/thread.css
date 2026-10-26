@@ -98,16 +98,67 @@
 .hbs2-md a { color: var(--fgColor-accent, #0969da); }
 .hbs2-md hr { border: 0; height: 4px; background: var(--borderColor-default, #d1d9e0); margin: 24px 0; }
 
-/* A pull request's diff. */
-.hbs2-diff {
-  margin: 0; padding: 8px 0; overflow: auto; max-height: 640px;
-  font: 12px/20px ui-monospace, SFMono-Regular, Menlo, monospace;
+/* A pull request: tabs, events, and the files changed. The tab not shown is
+   [hidden], which the display rules above would otherwise override. */
+.hbs2-thread [hidden] { display: none !important; }
+.hbs2-state.is-closed-pr { background: var(--bgColor-closed-emphasis, #cf222e); }
+.hbs2-branch {
+  padding: 2px 6px; border-radius: 6px; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--fgColor-accent, #0969da); background: var(--bgColor-accent-muted, #ddf4ff);
 }
-.hbs2-dl { display: block; padding: 0 16px; white-space: pre; }
-.hbs2-dl.add { background: var(--bgColor-success-muted, #dafbe1); }
-.hbs2-dl.del { background: var(--bgColor-danger-muted, #ffebe9); }
-.hbs2-dl.hunk { color: var(--fgColor-accent, #0969da); background: var(--bgColor-accent-muted, #ddf4ff); }
-.hbs2-dl.meta { color: var(--fgColor-muted, #59636e); }
+.hbs2-tabs {
+  display: flex; align-items: flex-end; gap: 8px; margin: 0 0 16px;
+  border-bottom: 1px solid var(--borderColor-default, #d1d9e0);
+}
+.hbs2-tab {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; margin-bottom: -1px;
+  font: inherit; font-size: 14px; color: var(--fgColor-muted, #59636e); cursor: pointer;
+  background: none; border: 1px solid transparent; border-radius: 6px 6px 0 0;
+}
+.hbs2-tab svg { fill: currentColor; }
+.hbs2-tab:hover { color: var(--fgColor-default, #1f2328); }
+.hbs2-tab.is-selected {
+  color: var(--fgColor-default, #1f2328); background: var(--bgColor-default, #fff);
+  border-color: var(--borderColor-default, #d1d9e0); border-bottom-color: var(--bgColor-default, #fff);
+}
+.hbs2-tab-count {
+  padding: 0 6px; border-radius: 2em; font-size: 12px; line-height: 18px; font-weight: 500;
+  background: var(--bgColor-neutral-muted, #818b981f);
+}
+.hbs2-diffstat { margin-left: auto; padding: 8px 0; font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.hbs2-add { color: var(--fgColor-success, #1a7f37); }
+.hbs2-del { color: var(--fgColor-danger, #d1242f); }
+
+.hbs2-ev { display: flex; align-items: center; gap: 8px; margin: 0 0 16px 56px; font-size: 14px; color: var(--fgColor-muted, #59636e); }
+.hbs2-ev-badge {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: none;
+  border-radius: 50%; color: #fff; border: 2px solid var(--bgColor-default, #fff);
+}
+.hbs2-ev-badge svg { fill: currentColor; }
+.hbs2-ev-badge.is-merged { background: var(--bgColor-done-emphasis, #8250df); }
+.hbs2-ev-badge.is-closed-pr { background: var(--bgColor-closed-emphasis, #cf222e); }
+
+.hbs2-files { display: flex; flex-direction: column; gap: 16px; }
+.hbs2-file { border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px; overflow: hidden; }
+.hbs2-file-head {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px; font-size: 12px;
+  background: var(--bgColor-muted, #f6f8fa); border-bottom: 1px solid var(--borderColor-default, #d1d9e0);
+}
+.hbs2-file-head strong { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fgColor-default, #1f2328); }
+.hbs2-file-head .hbs2-add, .hbs2-file-head .hbs2-del { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.hbs2-dtable { width: 100%; border-collapse: collapse; font: 12px/20px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.hbs2-dtable td { padding: 0 10px; vertical-align: top; }
+.hbs2-dtable .hbs2-ln {
+  width: 1%; min-width: 40px; text-align: right; user-select: none; white-space: nowrap;
+  color: var(--fgColor-muted, #59636e);
+}
+.hbs2-dtable .hbs2-code { white-space: pre-wrap; word-break: break-all; color: var(--fgColor-default, #1f2328); }
+.hbs2-dh td { color: var(--fgColor-muted, #59636e); background: var(--bgColor-accent-muted, #ddf4ff); padding: 4px 10px; }
+.hbs2-dr.is-add td { background: var(--bgColor-success-muted, #dafbe1); }
+.hbs2-dr.is-add .hbs2-ln { background: var(--diffBlob-additionNum-bgColor, #aceebb); }
+.hbs2-dr.is-del td { background: var(--bgColor-danger-muted, #ffebe9); }
+.hbs2-dr.is-del .hbs2-ln { background: var(--diffBlob-deletionNum-bgColor, #ffcecb); }
+.hbs2-dr.is-note .hbs2-code { color: var(--fgColor-muted, #59636e); font-style: italic; }
 
 /* The side column. */
 .hbs2-side-sec { padding: 16px 0; border-bottom: 1px solid var(--borderColor-muted, #d1d9e0b3); }

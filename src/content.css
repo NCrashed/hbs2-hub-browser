@@ -16,7 +16,8 @@
 .hbs2-icon { flex: none; margin-top: 3px; line-height: 0; }
 .hbs2-icon svg { fill: currentColor; }
 .hbs2-icon.is-open { color: var(--fgColor-success, #1a7f37); }
-.hbs2-icon.is-done { color: var(--fgColor-done, #8250df); }
+.hbs2-icon.is-closed, .hbs2-icon.is-merged { color: var(--fgColor-done, #8250df); }
+.hbs2-icon.is-closed-pr { color: var(--fgColor-closed, #d1242f); }
 
 .hbs2-main { flex: auto; min-width: 0; }
 .hbs2-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
