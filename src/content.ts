@@ -61,7 +61,13 @@ function routeOf(hash: string): Route | null {
 
 // The part of the page GitHub draws the list in; hidden while a thread is shown.
 function listApp(): HTMLElement | null {
-  return document.querySelector<HTMLElement>("#repo-content-pjax-container react-app, #repo-content-pjax-container > div");
+  // The app that draws the list, found from the list itself first: the page
+  // around it differs between a signed-in and a signed-out view.
+  const list = document.querySelector('[data-listview-component="items-list"]');
+  return (list?.closest("react-app") as HTMLElement | null)
+    ?? document.querySelector<HTMLElement>("#repo-content-pjax-container react-app")
+    ?? (list?.closest('[data-testid="issues-list-surface"]') as HTMLElement | null)
+    ?? document.querySelector<HTMLElement>("main react-app");
 }
 
 async function showThread(route: Route, key: string, gh: string): Promise<void> {
@@ -70,21 +76,48 @@ async function showThread(route: Route, key: string, gh: string): Promise<void> 
   if (shown && shown.getAttribute("data-route") === id) return;
   shown?.remove();
   const app = listApp();
-  if (!app) return;
-  app.style.display = "none";
-  app.setAttribute(`${MARK}-hidden`, "");
+  if (app) {
+    app.style.display = "none";
+    app.setAttribute(`${MARK}-hidden`, "");
+  } else console.warn("hbs2-hub: no list app found on this page; drawing the thread at the top");
   const host = el("div", { [MARK]: "thread-host", "data-route": id },
     el("div", { class: "hbs2-thread hbs2-muted" }, "Loading the thread from hbs2"));
-  app.after(host);
+  if (app) app.after(host);
+  else (document.querySelector("main") ?? document.body).prepend(host);
   try {
     const t = asThread(await call(`${route.kind}_show`, { repo: key, number: route.number }));
     document.title = `${t.title ?? ""} \u00b7 hbs2 #${t.number ?? "?"} \u00b7 ${gh}`;
     host.replaceChildren(threadView(t, {
       repo: key,
-      back: { label: route.kind === "pr" ? "Pull requests" : "Issues", go: () => { location.hash = ""; } },
+      back: { label: route.kind === "pr" ? "Pull requests" : "Issues", go: () => leaveThread() },
     }));
   } catch (e) {
     host.replaceChildren(el("div", { class: "hbs2-thread" }, "hbs2: ", e instanceof Error ? e.message : String(e)));
+  }
+}
+
+// The route goes into the address with pushState, NOT by setting location.hash.
+// GitHub's router listens for hashchange and popstate and, on a signed-in page,
+// answers a hash it does not know by navigating back to the plain list, which
+// took the thread away as soon as it was opened. pushState fires neither event,
+// so the router is not told; the back button still fires popstate, with the
+// address of the list, and the tick then hides the thread.
+// Whether the thread's history entry is ours: only then does "back" mean
+// history.back(); a thread opened from a link goes to the list instead.
+let pushed = false;
+
+function enterThread(kind: "issue" | "pr", number: number): void {
+  pushed = true;
+  history.pushState(history.state, "", `${location.pathname}${location.search}#hbs2/${kind}/${number}`);
+  window.scrollTo(0, 0);
+  tick();
+}
+
+function leaveThread(): void {
+  if (pushed && routeOf(location.hash)) { pushed = false; history.back(); }
+  else {
+    history.pushState(history.state, "", `${location.pathname}${location.search}`);
+    tick();
   }
 }
 
@@ -179,8 +212,7 @@ function rowEl(t: IndexRow, kind: "issue" | "pr", key: string, gh: string): HTML
     // A middle click or ctrl-click keeps its meaning: the href is the same route.
     if (e instanceof MouseEvent && (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey)) return;
     e.preventDefault();
-    location.hash = `hbs2/${kind}/${t.number ?? ""}`;
-    window.scrollTo(0, 0);
+    enterThread(kind, t.number ?? 0);
   };
   const title = el("a", { href: `#hbs2/${kind}/${t.number ?? ""}`, class: "hbs2-title" }, t.redacted ? "(redacted)" : t.title ?? "");
   title.addEventListener("click", go);
@@ -272,3 +304,4 @@ function tick(): void {
 }
 tick();
 setInterval(tick, 1000);
+addEventListener("popstate", () => tick());
