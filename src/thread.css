@@ -1,0 +1,117 @@
+/* A thread laid out like a GitHub issue page. Colours are Primer's variables:
+   on GitHub they are the page's own, so both themes follow it; the extension's
+   pages define the same names (pages/style.css). */
+
+.hbs2-thread {
+  max-width: 1280px; margin: 0 auto; padding: 24px 32px 48px;
+  color: var(--fgColor-default, #1f2328);
+  font-size: 14px; line-height: 1.5;
+}
+.hbs2-muted { color: var(--fgColor-muted, #59636e); }
+.hbs2-small { font-size: 12px; margin: 4px 0; }
+
+.hbs2-back { display: inline-block; font-size: 12px; margin-bottom: 8px; color: var(--fgColor-accent, #0969da); text-decoration: none; }
+.hbs2-back:hover { text-decoration: underline; }
+
+.hbs2-t-header { border-bottom: 1px solid var(--borderColor-default, #d1d9e0); padding-bottom: 16px; margin-bottom: 16px; }
+.hbs2-t-title { font-size: 32px; font-weight: 400; line-height: 1.25; margin: 0 0 8px; overflow-wrap: anywhere; }
+.hbs2-t-num { color: var(--fgColor-muted, #59636e); font-weight: 300; }
+.hbs2-t-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hbs2-t-meta { color: var(--fgColor-muted, #59636e); }
+.hbs2-who { color: var(--fgColor-default, #1f2328); font-weight: 600; }
+
+.hbs2-state {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px; border-radius: 2em; font-weight: 500; line-height: 20px;
+  color: var(--fgColor-onEmphasis, #ffffff);
+}
+.hbs2-state svg { fill: currentColor; }
+.hbs2-state.is-open { background: var(--bgColor-open-emphasis, #1f883d); }
+.hbs2-state.is-closed, .hbs2-state.is-merged { background: var(--bgColor-done-emphasis, #8250df); }
+
+.hbs2-badge {
+  display: inline-block; font-size: 12px; font-weight: 500; line-height: 18px;
+  padding: 0 7px; border-radius: 2em;
+  border: 1px solid var(--borderColor-done-emphasis, #8250df);
+  color: var(--fgColor-done, #8250df);
+}
+.hbs2-label {
+  display: inline-block; font-size: 12px; font-weight: 500; line-height: 18px;
+  padding: 0 7px; border-radius: 2em; margin: 0 4px 4px 0;
+  background: var(--bgColor-neutral-muted, rgba(129, 139, 152, 0.12));
+}
+.hbs2-label.is-asked { background: none; border: 1px dashed var(--borderColor-default, #d1d9e0); }
+
+.hbs2-t-layout { display: flex; gap: 32px; align-items: flex-start; }
+.hbs2-t-timeline { flex: 1 1 auto; min-width: 0; }
+.hbs2-t-side { flex: 0 0 256px; font-size: 12px; }
+@media (max-width: 768px) {
+  .hbs2-t-layout { flex-direction: column; }
+  .hbs2-t-side { flex-basis: auto; width: 100%; }
+}
+
+/* The conversation: a face, and a box with a header bar. */
+.hbs2-c { display: flex; gap: 16px; margin-bottom: 16px; position: relative; }
+.hbs2-c-face { flex: 0 0 40px; }
+.hbs2-avatar { border-radius: 50%; display: block; }
+.hbs2-c-box {
+  flex: 1 1 auto; min-width: 0;
+  border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px;
+  background: var(--bgColor-default, #ffffff);
+}
+.hbs2-c-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  padding: 8px 16px; border-bottom: 1px solid var(--borderColor-default, #d1d9e0);
+  background: var(--bgColor-muted, #f6f8fa); border-radius: 6px 6px 0 0;
+  color: var(--fgColor-muted, #59636e);
+}
+.hbs2-c-head-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.hbs2-c-badge {
+  font-size: 12px; font-weight: 500; padding: 0 7px; line-height: 18px; border-radius: 2em;
+  border: 1px solid var(--borderColor-default, #d1d9e0); color: var(--fgColor-muted, #59636e);
+}
+.hbs2-c-blessed { font-size: 12px; }
+.hbs2-c-body { padding: 16px; overflow-wrap: anywhere; }
+.hbs2-t-foot { border-top: 1px solid var(--borderColor-default, #d1d9e0); padding-top: 16px; margin-left: 56px; }
+
+/* Markdown inside a body, close to GitHub's markdown-body. */
+.hbs2-md > :first-child { margin-top: 0; }
+.hbs2-md > :last-child { margin-bottom: 0; }
+.hbs2-md p, .hbs2-md ul, .hbs2-md ol, .hbs2-md blockquote, .hbs2-md pre { margin: 0 0 16px; }
+.hbs2-md ul, .hbs2-md ol { padding-left: 2em; }
+.hbs2-md li + li { margin-top: 4px; }
+.hbs2-md li > p { margin: 0; }
+.hbs2-md li > ul, .hbs2-md li > ol { margin: 4px 0 0; }
+.hbs2-md h1, .hbs2-md h2 { border-bottom: 1px solid var(--borderColor-muted, #d1d9e0b3); padding-bottom: 0.3em; }
+.hbs2-md h1, .hbs2-md h2, .hbs2-md h3, .hbs2-md h4 { margin: 24px 0 16px; font-weight: 600; line-height: 1.25; }
+.hbs2-md h1 { font-size: 2em; } .hbs2-md h2 { font-size: 1.5em; } .hbs2-md h3 { font-size: 1.25em; }
+.hbs2-md blockquote { padding: 0 1em; color: var(--fgColor-muted, #59636e); border-left: 0.25em solid var(--borderColor-default, #d1d9e0); }
+.hbs2-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 85%;
+  padding: 0.2em 0.4em; border-radius: 6px; background: var(--bgColor-neutral-muted, rgba(129, 139, 152, 0.12));
+}
+.hbs2-md pre {
+  padding: 16px; overflow: auto; font-size: 85%; line-height: 1.45; border-radius: 6px;
+  background: var(--bgColor-muted, #f6f8fa);
+}
+.hbs2-md pre code { padding: 0; background: none; font-size: 100%; }
+.hbs2-md a { color: var(--fgColor-accent, #0969da); }
+.hbs2-md hr { border: 0; height: 4px; background: var(--borderColor-default, #d1d9e0); margin: 24px 0; }
+
+/* A pull request's diff. */
+.hbs2-diff {
+  margin: 0; padding: 8px 0; overflow: auto; max-height: 640px;
+  font: 12px/20px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.hbs2-dl { display: block; padding: 0 16px; white-space: pre; }
+.hbs2-dl.add { background: var(--bgColor-success-muted, #dafbe1); }
+.hbs2-dl.del { background: var(--bgColor-danger-muted, #ffebe9); }
+.hbs2-dl.hunk { color: var(--fgColor-accent, #0969da); background: var(--bgColor-accent-muted, #ddf4ff); }
+.hbs2-dl.meta { color: var(--fgColor-muted, #59636e); }
+
+/* The side column. */
+.hbs2-side-sec { padding: 16px 0; border-bottom: 1px solid var(--borderColor-muted, #d1d9e0b3); }
+.hbs2-side-sec:first-child { padding-top: 0; }
+.hbs2-side-sec h3 { font-size: 12px; font-weight: 600; color: var(--fgColor-muted, #59636e); margin: 0 0 8px; }
+.hbs2-side-person { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.hbs2-side-faces { display: flex; flex-wrap: wrap; gap: 4px; }

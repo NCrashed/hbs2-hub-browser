@@ -13,10 +13,11 @@ import { repoFromPath } from "./lib/pointer.ts";
 import type { GithubRepo } from "./lib/pointer.ts";
 import { call, open, pointer } from "./lib/client.ts";
 import type { Pointer } from "./lib/client.ts";
-import { asIndex } from "./lib/docs.ts";
+import { asIndex, asThread } from "./lib/docs.ts";
 import type { IndexRow } from "./lib/docs.ts";
 import { el } from "./lib/dom.ts";
 import { ago, filterRows, parseQuery } from "./lib/query.ts";
+import { threadView } from "./lib/threadview.ts";
 
 const MARK = "data-hbs2-hub";
 
@@ -40,7 +41,61 @@ async function run(): Promise<void> {
 
   if (!mine("tab")) addTab(key, gh);
   if (p.changed && !mine("warn")) warnChanged(p.changed);
-  if (listPage) await addRows(r, key, gh);
+  const route = routeOf(location.hash);
+  if (listPage && route) await showThread(route, key, gh);
+  else {
+    hideThread();
+    if (listPage) await addRows(r, key, gh);
+  }
+}
+
+// A thread is shown in place, under GitHub's own header, at `#hbs2/<kind>/<number>`
+// on the issues or pulls page: the address can be shared and the browser's back
+// button returns to the list.
+interface Route { kind: "issue" | "pr"; number: number }
+
+function routeOf(hash: string): Route | null {
+  const m = /^#hbs2\/(issue|pr)\/(\d{1,9})$/.exec(hash);
+  return m ? { kind: m[1] as "issue" | "pr", number: Number(m[2]) } : null;
+}
+
+// The part of the page GitHub draws the list in; hidden while a thread is shown.
+function listApp(): HTMLElement | null {
+  return document.querySelector<HTMLElement>("#repo-content-pjax-container react-app, #repo-content-pjax-container > div");
+}
+
+async function showThread(route: Route, key: string, gh: string): Promise<void> {
+  const id = `${route.kind}/${route.number}`;
+  const shown = mine("thread-host");
+  if (shown && shown.getAttribute("data-route") === id) return;
+  shown?.remove();
+  const app = listApp();
+  if (!app) return;
+  app.style.display = "none";
+  app.setAttribute(`${MARK}-hidden`, "");
+  const host = el("div", { [MARK]: "thread-host", "data-route": id },
+    el("div", { class: "hbs2-thread hbs2-muted" }, "Loading the thread from hbs2"));
+  app.after(host);
+  try {
+    const t = asThread(await call(`${route.kind}_show`, { repo: key, number: route.number }));
+    document.title = `${t.title ?? ""} \u00b7 hbs2 #${t.number ?? "?"} \u00b7 ${gh}`;
+    host.replaceChildren(threadView(t, {
+      repo: key,
+      back: { label: route.kind === "pr" ? "Pull requests" : "Issues", go: () => { location.hash = ""; } },
+    }));
+  } catch (e) {
+    host.replaceChildren(el("div", { class: "hbs2-thread" }, "hbs2: ", e instanceof Error ? e.message : String(e)));
+  }
+}
+
+function hideThread(): void {
+  const host = mine("thread-host");
+  if (!host) return;
+  host.remove();
+  for (const e of document.querySelectorAll(`[${MARK}-hidden]`)) {
+    (e as HTMLElement).style.display = "";
+    e.removeAttribute(`${MARK}-hidden`);
+  }
 }
 
 // A tab in the repository's navigation, next to Issues and Pull requests.
@@ -121,10 +176,13 @@ function countOnTabs(all: IndexRow[]): void {
 
 function rowEl(t: IndexRow, kind: "issue" | "pr", key: string, gh: string): HTMLElement {
   const go = (e: Event) => {
+    // A middle click or ctrl-click keeps its meaning: the href is the same route.
+    if (e instanceof MouseEvent && (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey)) return;
     e.preventDefault();
-    void open("thread", { key, kind, number: String(t.number ?? ""), gh });
+    location.hash = `hbs2/${kind}/${t.number ?? ""}`;
+    window.scrollTo(0, 0);
   };
-  const title = el("a", { href: "#", class: "hbs2-title" }, t.redacted ? "(redacted)" : t.title ?? "");
+  const title = el("a", { href: `#hbs2/${kind}/${t.number ?? ""}`, class: "hbs2-title" }, t.redacted ? "(redacted)" : t.title ?? "");
   title.addEventListener("click", go);
   return el("li", { class: "hbs2-row" },
     stateIcon(t.status),

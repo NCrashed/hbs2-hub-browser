@@ -10,7 +10,7 @@
   }
 }
 body { background: var(--bg); color: var(--fg); margin: 0; font: 14px/1.5 system-ui, sans-serif; }
-main { max-width: 960px; margin: 0 auto; padding: 16px; }
+main { max-width: 1280px; margin: 0 auto; padding: 16px; }
 h1 { font-size: 24px; margin: 8px 0; }
 h2 { font-size: 18px; margin: 24px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
 a { color: inherit; }
@@ -29,3 +29,25 @@ td.num { color: var(--muted); white-space: nowrap; }
 .body { white-space: pre-wrap; overflow-wrap: anywhere; }
 .comment { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
 .diff { max-height: 600px; }
+
+/* Primer's variable names, so the shared thread view (thread.css) looks the
+   same here as on GitHub, in both themes. */
+:root {
+  --fgColor-default: #1f2328; --fgColor-muted: #59636e; --fgColor-accent: #0969da;
+  --fgColor-done: #8250df; --fgColor-onEmphasis: #ffffff;
+  --bgColor-default: #ffffff; --bgColor-muted: #f6f8fa; --bgColor-neutral-muted: rgba(129, 139, 152, 0.12);
+  --bgColor-open-emphasis: #1f883d; --bgColor-done-emphasis: #8250df;
+  --bgColor-success-muted: #dafbe1; --bgColor-danger-muted: #ffebe9; --bgColor-accent-muted: #ddf4ff;
+  --borderColor-default: #d1d9e0; --borderColor-muted: rgba(209, 217, 224, 0.7); --borderColor-done-emphasis: #8250df;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fgColor-default: #f0f6fc; --fgColor-muted: #9198a1; --fgColor-accent: #4493f8;
+    --fgColor-done: #ab7df8; --fgColor-onEmphasis: #ffffff;
+    --bgColor-default: #0d1117; --bgColor-muted: #151b23; --bgColor-neutral-muted: rgba(101, 108, 118, 0.2);
+    --bgColor-open-emphasis: #238636; --bgColor-done-emphasis: #8957e5;
+    --bgColor-success-muted: rgba(46, 160, 67, 0.15); --bgColor-danger-muted: rgba(248, 81, 73, 0.1);
+    --bgColor-accent-muted: rgba(56, 139, 253, 0.1);
+    --borderColor-default: #3d444d; --borderColor-muted: rgba(61, 68, 77, 0.7); --borderColor-done-emphasis: #8957e5;
+  }
+}

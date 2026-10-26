@@ -16,7 +16,7 @@ const base = {
   host_permissions: ["https://github.com/*", "https://raw.githubusercontent.com/*"],
   action: { default_title: "hbs2-hub" },
   options_ui: { page: "pages/options.html", open_in_tab: true },
-  content_scripts: [{ matches: ["https://github.com/*"], js: ["content.js"], css: ["content.css"], run_at: "document_idle" }],
+  content_scripts: [{ matches: ["https://github.com/*"], js: ["content.js"], css: ["content.css", "thread.css"], run_at: "document_idle" }],
   content_security_policy: { extension_pages: "script-src 'self'; object-src 'none'" },
 };
 
@@ -49,6 +49,7 @@ for (const [name, manifest] of Object.entries(targets)) {
   });
   for (const f of ["repo.html", "thread.html", "options.html", "style.css"]) cpSync(`src/pages/${f}`, `${out}/pages/${f}`);
   cpSync("src/content.css", `${out}/content.css`);
+  cpSync("src/thread.css", `${out}/thread.css`);
   writeFileSync(`${out}/manifest.json`, JSON.stringify(manifest, null, 2) + "\n");
   console.log(`built ${out}`);
 }
