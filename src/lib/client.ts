@@ -58,6 +58,11 @@ export async function pointer(owner: string, repo: string): Promise<Pointer> {
   return (await send({ kind: "pointer", owner, repo })) as unknown as Pointer;
 }
 
-export async function open(page: "repo" | "thread", params: { [k: string]: string }): Promise<void> {
+export async function open(page: "repo" | "thread" | "compose", params: { [k: string]: string }): Promise<void> {
   await send({ kind: "open", page, params });
+}
+
+/** Tell the GitHub tab a form came from that the repository changed. */
+export async function changed(tab: number | null, key: string): Promise<void> {
+  await send({ kind: "changed", tab, key });
 }

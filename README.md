@@ -25,8 +25,25 @@ Phase 1, reading:
   request its coordinates and diff, each item attributed to the key that
   wrote it and the key that accepted it.
 
-Filing, proposing and triaging from the page come next (PEP-24 phases 2
-and 3).
+Writing (PEP-24 phases 2 and 3, in part):
+
+- **New issue on hbs2** and **New pull request on hbs2** buttons in the
+  list panel, a comment box at the end of every thread, and, for a
+  maintainer, a merge box on an open pull request;
+- each opens the extension's own form in a window of its own: the form,
+  then a review that runs the write as a dry run and shows exactly what
+  it would do, then the write itself, and canon is published after;
+- a maintainer's issue or comment goes straight into canon; anybody
+  else's goes to the project's mailbox as a letter and shows up once a
+  maintainer accepts it. A pull request is a letter carrying the commits
+  of a branch of your working clone. Merge makes a merge commit, pushes
+  it to the hbs2 remote and to `origin`, and records it
+  (`hbs2-hub pr land`).
+
+Writing needs a working clone of the repository on your machine, named
+with `git config --global hbs2-hub.<repo-key>.clone <dir>`, and an
+identity (`hbs2-hub identity init`). The inbox, labels and closing come
+next.
 
 ## How it works
 

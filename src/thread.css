@@ -166,3 +166,33 @@
 .hbs2-side-sec h3 { font-size: 12px; font-weight: 600; color: var(--fgColor-muted, #59636e); margin: 0 0 8px; }
 .hbs2-side-person { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .hbs2-side-faces { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Buttons, here and in the forms. */
+.hbs2-btn {
+  white-space: nowrap; flex: none;
+  font: inherit; font-size: 14px; font-weight: 500; padding: 5px 16px; line-height: 20px; cursor: pointer;
+  color: var(--fgColor-default, #1f2328); background: var(--bgColor-muted, #f6f8fa);
+  border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px;
+}
+.hbs2-btn:hover { filter: brightness(0.97); }
+.hbs2-btn.is-primary { color: #fff; background: var(--bgColor-open-emphasis, #1f883d); border-color: rgba(31, 35, 40, 0.15); }
+.hbs2-btn.is-primary:hover { filter: brightness(1.08); }
+.hbs2-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* What a thread offers to write: GitHub's merge box and comment box. */
+.hbs2-merge { display: flex; gap: 16px; margin: 0 0 16px; }
+.hbs2-merge[hidden], .hbs2-merge [hidden] { display: none !important; }
+.hbs2-ev-badge.is-open-pr { background: var(--bgColor-open-emphasis, #1f883d); flex: none; width: 40px; height: 40px; }
+.hbs2-merge-box {
+  flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px;
+  border: 1px solid var(--borderColor-success-emphasis, #1a7f37); border-radius: 6px;
+}
+.hbs2-merge-text { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.hbs2-merge-text .hbs2-muted { font-size: 12px; }
+.hbs2-composer .hbs2-c-face { width: 40px; height: 40px; border-radius: 50%; background: var(--bgColor-neutral-muted, #818b981f); }
+.hbs2-compose-area {
+  width: 100%; box-sizing: border-box; min-height: 100px; resize: vertical; padding: 8px 12px;
+  font: inherit; font-size: 14px; color: inherit; background: var(--bgColor-default, #fff);
+  border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px;
+}
+.hbs2-composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }

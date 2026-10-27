@@ -2,8 +2,9 @@
 //
 // READ-ONLY. This script runs beside a page anybody can put text on, so it
 // never asks for a tool that writes (the background worker would refuse it
-// anyway) and everything it adds is elements and text nodes. Threads open in
-// the extension's own pages.
+// anyway) and everything it adds is elements and text nodes. Its buttons that
+// write open the extension's own form, where the person reviews what will be
+// signed; a draft typed here is carried there and shown again.
 //
 // GitHub's issue and pull request lists are drawn by React, which may redraw
 // them at any moment. The hbs2 rows are therefore a list of their own, put right
@@ -15,6 +16,8 @@ import { call, open, pointer } from "./lib/client.ts";
 import type { Pointer } from "./lib/client.ts";
 import { asIndex, asThread } from "./lib/docs.ts";
 import type { IndexRow } from "./lib/docs.ts";
+import { roleOf } from "./lib/compose.ts";
+import type { TabNote } from "./lib/protocol.ts";
 import { el } from "./lib/dom.ts";
 import { ago, filterRows, parseQuery } from "./lib/query.ts";
 import { iconEl, stateLook, threadView } from "./lib/threadview.ts";
@@ -23,6 +26,23 @@ const MARK = "data-hbs2-hub";
 
 const pointers = new Map<string, Promise<Pointer>>();
 const lists = new Map<string, Promise<IndexRow[]>>();
+const maintains = new Map<string, Promise<boolean>>();
+
+// Whether the working clone signs as a maintainer, asked without the network.
+function canLand(key: string): Promise<boolean> {
+  if (!maintains.has(key)) {
+    const p = call("status", { repo: key, local: true }).then((v) => roleOf(v).maintainer, () => false);
+    maintains.set(key, p);
+  }
+  return maintains.get(key)!;
+}
+
+// A draft is carried in the form's address, so it is bounded.
+const DRAFT_MAX = 6000;
+
+function compose(params: { [k: string]: string }): void {
+  void open("compose", params);
+}
 
 function mine(what: string, root: ParentNode = document): Element | null {
   return root.querySelector(`[${MARK}="${what}"]`);
@@ -87,9 +107,14 @@ async function showThread(route: Route, key: string, gh: string): Promise<void> 
   try {
     const t = asThread(await call(`${route.kind}_show`, { repo: key, number: route.number }));
     document.title = `${t.title ?? ""} \u00b7 hbs2 #${t.number ?? "?"} \u00b7 ${gh}`;
+    const n = String(route.number);
     host.replaceChildren(threadView(t, {
       repo: key,
       back: { label: route.kind === "pr" ? "Pull requests" : "Issues", go: () => leaveThread() },
+      actions: {
+        comment: (draft) => compose({ op: "comment", key, gh, kind: route.kind, number: n, body: draft.slice(0, DRAFT_MAX) }),
+        ...(route.kind === "pr" ? { land: () => compose({ op: "land", key, gh, number: n }), canLand: canLand(key) } : {}),
+      },
     }));
   } catch (e) {
     host.replaceChildren(el("div", { class: "hbs2-thread" }, "hbs2: ", e instanceof Error ? e.message : String(e)));
@@ -181,6 +206,7 @@ async function addRows(r: GithubRepo, key: string, gh: string): Promise<void> {
 
   if (!mine("rows")) {
     const ul = el("ul", { [MARK]: "rows", class: "hbs2-rows", role: "list", "aria-label": "hbs2 threads" },
+      barEl(kind, key, gh, shown.length),
       ...shown.map((t) => rowEl(t, kind, key, gh)));
     list.before(ul);
   }
@@ -193,6 +219,18 @@ async function addRows(r: GithubRepo, key: string, gh: string): Promise<void> {
   }
 
   countOnTabs(all);
+}
+
+// The first line of the hbs2 rows: how many, and the button that files one.
+function barEl(kind: "issue" | "pr", key: string, gh: string, n: number): HTMLElement {
+  const go = el("button", { type: "button", class: "hbs2-btn is-primary hbs2-new" },
+    kind === "pr" ? "New pull request on hbs2" : "New issue on hbs2");
+  go.addEventListener("click", () => compose({ op: kind, key, gh }));
+  return el("li", { class: "hbs2-bar" },
+    el("span", { class: "hbs2-badge" }, "hbs2"),
+    el("span", { class: "hbs2-muted" },
+      `${n} ${kind === "pr" ? "pull request" : "issue"}${n === 1 ? "" : "s"} on hbs2 for this search`),
+    go);
 }
 
 function countOnTabs(all: IndexRow[]): void {
@@ -282,3 +320,14 @@ function tick(): void {
 tick();
 setInterval(tick, 1000);
 addEventListener("popstate", () => tick());
+
+// A form finished writing: fetch again and draw again, where we are.
+chrome.runtime.onMessage.addListener((m: TabNote) => {
+  if (m?.kind !== "hbs2-changed") return;
+  lists.clear();
+  maintains.delete(m.key);
+  mine("thread-host")?.remove();
+  mine("rows")?.remove();
+  for (const e of document.querySelectorAll(`[${MARK}="count"]`)) e.remove();
+  tick();
+});

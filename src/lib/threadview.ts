@@ -17,6 +17,16 @@ export interface ThreadViewOptions {
   repo: string;
   /** Where "back" goes, and how it is done (a GitHub list, or the extension's repo page). */
   back: { label: string; go: () => void };
+  /**
+   * What the person may write here, when the page can open the extension's
+   * forms: a comment, and for a pull request a merge, offered once
+   * `canLand` says this clone signs as a maintainer.
+   */
+  actions?: {
+    comment?: (draft: string) => void;
+    land?: () => void;
+    canLand?: Promise<boolean>;
+  };
 }
 
 // Octicons (MIT, GitHub), drawn with the DOM API rather than parsed markup.
@@ -137,7 +147,7 @@ export function threadView(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
       el("span", { class: "hbs2-badge", title: "this thread lives on hbs2, not on GitHub" }, "hbs2"),
       meta));
 
-  const conversation = el("div", { class: "hbs2-t-layout" }, timeline(t), side(t, o));
+  const conversation = el("div", { class: "hbs2-t-layout" }, timeline(t, o), side(t, o));
   const root = el("div", { class: "hbs2-thread", "data-hbs2-hub": "thread" }, header);
 
   if (!pr) {
@@ -174,9 +184,10 @@ export function threadView(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
   return root;
 }
 
-function timeline(t: ThreadDoc): HTMLElement {
+function timeline(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
   const pr = t.kind === "pr" ? t.pr : undefined;
   const foot = t.kind === "pr" ? "pr" : "issue";
+  const a = o.actions;
   return el("div", { class: "hbs2-t-timeline" },
     commentBox({ author: t.author, canonBy: t.canon_by, ts: t.created_at, text: t.body, redacted: t.redacted,
                  isThreadAuthor: true, verb: "opened" }),
@@ -188,9 +199,49 @@ function timeline(t: ThreadDoc): HTMLElement {
           el("code", { title: pr.merge_commit }, pr.merge_commit.slice(0, 7)), " into ", branch(pr.merged_into ?? pr.onto))
       : null,
     pr && t.status === "closed" ? eventRow("pr-closed", "is-closed-pr", "Closed without merging") : null,
-    el("div", { class: "hbs2-t-foot hbs2-muted" },
-      "This thread lives on hbs2. Replying from this page comes in a later version; for now: ",
-      el("code", {}, `hbs2-hub ${foot} comment --number ${t.number ?? "?"} --body -`)));
+    pr && t.status === "open" && a?.land ? mergeBox(pr.onto, a.land, a.canLand) : null,
+    a?.comment
+      ? composer(a.comment)
+      : el("div", { class: "hbs2-t-foot hbs2-muted" },
+          "This thread lives on hbs2. To reply: ",
+          el("code", {}, `hbs2-hub ${foot} comment --number ${t.number ?? "?"} --body -`)));
+}
+
+// GitHub's merge box, for a maintainer: hidden until the clone says it signs
+// as one, since a button that can only be refused is worse than none.
+function mergeBox(onto: string, land: () => void, can: Promise<boolean> | undefined): HTMLElement {
+  const go = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Merge pull request");
+  go.addEventListener("click", () => land());
+  const box = el("div", { class: "hbs2-merge" },
+    el("span", { class: "hbs2-ev-badge is-open-pr" }, iconEl("pr-open")),
+    el("div", { class: "hbs2-merge-box" },
+      el("div", { class: "hbs2-merge-text" },
+        el("strong", {}, "Merge it on hbs2"),
+        el("span", { class: "hbs2-muted" },
+          "A merge commit into ", branch(onto), " in your working clone, pushed, recorded in canon and published. "
+          + "You review exactly what it does first.")),
+      go));
+  box.hidden = true;
+  void (can ?? Promise.resolve(true)).then((yes) => { box.hidden = !yes; }, () => {});
+  return box;
+}
+
+// GitHub's comment box at the end of the conversation. The text is carried to
+// the extension's form, where it is shown again and nothing is sent without
+// the person's review: this box sits on a page others can write to.
+function composer(comment: (draft: string) => void): HTMLElement {
+  const area = el("textarea", { class: "hbs2-compose-area", placeholder: "Add a comment on hbs2", rows: "4" });
+  const go = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Comment");
+  go.addEventListener("click", () => comment(area.value));
+  return el("div", { class: "hbs2-c hbs2-composer" },
+    el("div", { class: "hbs2-c-face" }),
+    el("div", { class: "hbs2-c-box" },
+      el("div", { class: "hbs2-c-head" }, el("strong", {}, "Add a comment"),
+        el("span", { class: "hbs2-c-head-right hbs2-muted" }, "signed by you, on hbs2")),
+      el("div", { class: "hbs2-c-body" }, area,
+        el("div", { class: "hbs2-composer-actions" },
+          el("span", { class: "hbs2-muted hbs2-small" }, "Markdown is supported. You review it before it is signed."),
+          go))));
 }
 
 function side(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {

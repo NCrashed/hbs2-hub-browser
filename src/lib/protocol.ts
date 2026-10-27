@@ -40,7 +40,15 @@ export function toolInfo(t: Json): ToolInfo | null {
 export type Ask =
   | { kind: "call"; tool: string; args: { [k: string]: Json } }
   | { kind: "pointer"; owner: string; repo: string }
-  | { kind: "open"; page: "repo" | "thread"; params: { [k: string]: string } };
+  | { kind: "open"; page: "repo" | "thread" | "compose"; params: { [k: string]: string } }
+  /** A write finished: the GitHub tab the form was opened from redraws. */
+  | { kind: "changed"; tab: number | null; key: string };
+
+/** What the background worker tells a GitHub tab. */
+export interface TabNote {
+  kind: "hbs2-changed";
+  key: string;
+}
 
 export type Answer =
   | { kind: "result"; seq: number; ok: true; result: Json }

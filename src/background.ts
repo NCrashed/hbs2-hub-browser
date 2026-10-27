@@ -1,6 +1,6 @@
 // The one connection to `hbs2-hub native-host`, and the rule about who may ask it what.
 import { HOST_NAME, mayCall, toolInfo } from "./lib/protocol.ts";
-import type { Answer, Envelope, HostReply, Json, ToolInfo } from "./lib/protocol.ts";
+import type { Answer, Envelope, HostReply, Json, TabNote, ToolInfo } from "./lib/protocol.ts";
 import { parsePointer, pointerUrl } from "./lib/pointer.ts";
 
 let port: chrome.runtime.Port | null = null;
@@ -117,8 +117,27 @@ chrome.runtime.onConnect.addListener((p) => {
       const r = await pointer(q.owner, q.repo);
       reply({ kind: "result", seq, ok: true, result: r as unknown as Json });
     } else if (q.kind === "open") {
-      const path = q.page === "repo" ? "pages/repo.html" : "pages/thread.html";
-      await chrome.tabs.create({ url: chrome.runtime.getURL(path) + "?" + new URLSearchParams(q.params).toString() });
+      if (q.page === "compose") {
+        // A form in a window of its own, over the page it was opened from, as
+        // GitHub's own dialogs sit over theirs. The tab it came from goes with
+        // it, so that the page can be told to redraw when the write is done.
+        const tab = p.sender?.tab?.id;
+        const params = new URLSearchParams(q.params);
+        if (tab !== undefined) params.set("tab", String(tab));
+        await chrome.windows.create({ url: chrome.runtime.getURL("pages/compose.html") + "?" + params.toString(),
+                                      type: "popup", width: 820, height: 860 });
+      } else {
+        const path = q.page === "repo" ? "pages/repo.html" : "pages/thread.html";
+        await chrome.tabs.create({ url: chrome.runtime.getURL(path) + "?" + new URLSearchParams(q.params).toString() });
+      }
+      reply({ kind: "result", seq, ok: true, result: null });
+    } else if (q.kind === "changed") {
+      // From a form only: a GitHub page has nothing to announce.
+      if (from === "page" && q.tab !== null) {
+        const note: TabNote = { kind: "hbs2-changed", key: q.key };
+        try { await chrome.tabs.sendMessage(q.tab, note); } catch { /* the tab went away */ }
+        try { await chrome.tabs.update(q.tab, { active: true }); } catch { /* likewise */ }
+      }
       reply({ kind: "result", seq, ok: true, result: null });
     } else if (q.kind === "call") {
       const t = await tools();
