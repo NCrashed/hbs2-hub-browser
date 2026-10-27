@@ -1,6 +1,7 @@
 // One thread, in the extension's own page: the same view as on GitHub.
 import { call, open } from "../lib/client.ts";
 import { roleOf } from "../lib/compose.ts";
+import { threadActions } from "../lib/actions.ts";
 import { asThread } from "../lib/docs.ts";
 import { isRepoKey } from "../lib/pointer.ts";
 import { el } from "../lib/dom.ts";
@@ -27,13 +28,10 @@ async function main_(): Promise<void> {
     main.replaceChildren(threadView(t, {
       repo: key,
       back: { label: gh || "Repository", go: () => { location.href = `repo.html?${new URLSearchParams({ key, gh })}`; } },
-      actions: {
-        comment: (draft) => void open("compose", { op: "comment", key, gh, kind, number: String(number), body: draft }),
-        ...(kind === "pr" ? {
-          land: () => void open("compose", { op: "land", key, gh, number: String(number) }),
-          canLand: call("status", { repo: key, local: true }).then((v) => roleOf(v).maintainer, () => false),
-        } : {}),
-      },
+      actions: threadActions({
+        compose: (p) => void open("compose", p), key, gh, kind, number,
+        maintains: call("status", { repo: key, local: true }).then((v) => roleOf(v).maintainer, () => false),
+      }),
     }));
   } catch (e) {
     main.replaceChildren(el("p", {}, e instanceof Error ? e.message : String(e)));

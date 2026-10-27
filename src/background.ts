@@ -127,8 +127,11 @@ chrome.runtime.onConnect.addListener((p) => {
         await chrome.windows.create({ url: chrome.runtime.getURL("pages/compose.html") + "?" + params.toString(),
                                       type: "popup", width: 820, height: 860 });
       } else {
-        const path = q.page === "repo" ? "pages/repo.html" : "pages/thread.html";
-        await chrome.tabs.create({ url: chrome.runtime.getURL(path) + "?" + new URLSearchParams(q.params).toString() });
+        const path = q.page === "repo" ? "pages/repo.html" : q.page === "inbox" ? "pages/inbox.html" : "pages/thread.html";
+        const params = new URLSearchParams(q.params);
+        const tab = p.sender?.tab?.id;
+        if (q.page === "inbox" && tab !== undefined) params.set("tab", String(tab));
+        await chrome.tabs.create({ url: chrome.runtime.getURL(path) + "?" + params.toString() });
       }
       reply({ kind: "result", seq, ok: true, result: null });
     } else if (q.kind === "restart") {

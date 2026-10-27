@@ -20,13 +20,18 @@ export interface ThreadViewOptions {
   back: { label: string; go: () => void };
   /**
    * What the person may write here, when the page can open the extension's
-   * forms: a comment, and for a pull request a merge, offered once
-   * `canLand` says this clone signs as a maintainer.
+   * forms: a comment; and once `maintains` says this clone signs as a
+   * maintainer, a merge, closing or reopening, and the labels.
    */
   actions?: {
     comment?: (draft: string) => void;
     land?: () => void;
-    canLand?: Promise<boolean>;
+    close?: (note: string) => void;
+    reopen?: (note: string) => void;
+    labels?: (labels: string[]) => void;
+    /** Labels used elsewhere in the repository, offered when editing. */
+    knownLabels?: string[];
+    maintains?: Promise<boolean>;
   };
 }
 
@@ -201,9 +206,9 @@ function timeline(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
           el("code", { title: pr.merge_commit }, pr.merge_commit.slice(0, 7)), " into ", branch(pr.merged_into ?? pr.onto))
       : null,
     pr && t.status === "closed" ? eventRow("pr-closed", "is-closed-pr", "Closed without merging") : null,
-    pr && t.status === "open" && a?.land ? mergeBox(pr.onto, a.land, a.canLand) : null,
+    pr && t.status === "open" && a?.land ? mergeBox(pr.onto, a.land, a.maintains) : null,
     a?.comment
-      ? composer(a.comment)
+      ? composer(t, a.comment, a)
       : el("div", { class: "hbs2-t-foot hbs2-muted" },
           "This thread lives on hbs2. To reply: ",
           el("code", {}, `hbs2-hub ${foot} comment --number ${t.number ?? "?"} --body -`)));
@@ -232,7 +237,7 @@ function mergeBox(onto: string, land: () => void, can: Promise<boolean> | undefi
 // Preview tabs. "Comment" carries the text to the extension's window, which
 // opens on the review: it shows the comment as it will read and is where it
 // is signed. This box sits on a page others can write to, so it never signs.
-function composer(comment: (draft: string) => void): HTMLElement {
+function composer(t: ThreadDoc, comment: (draft: string) => void, a: NonNullable<ThreadViewOptions["actions"]>): HTMLElement {
   const go = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Comment");
   let ed: ReturnType<typeof editor> | null = null;
   const send = () => {
@@ -240,7 +245,20 @@ function composer(comment: (draft: string) => void): HTMLElement {
     if (!ed.value().trim()) { ed.focus(); return; }
     comment(ed.value());
   };
-  ed = editor({ placeholder: "Add your comment here...", rows: 5, action: go, submit: send });
+  // GitHub's Close button beside Comment, for a maintainer: with text in the
+  // box it closes with that as the note. A merged pull request has neither.
+  const noun = t.kind === "pr" ? "pull request" : "issue";
+  const toggle = t.status === "open" && a.close ? { label: `Close ${noun}`, act: a.close, icon: t.kind === "pr" ? "pr-closed" : "issue-closed" }
+    : t.status === "closed" && a.reopen ? { label: `Reopen ${noun}`, act: a.reopen, icon: t.kind === "pr" ? "pr-open" : "issue-open" }
+    : null;
+  const side = toggle ? el("button", { type: "button", class: "hbs2-btn hbs2-toggle" }, iconEl(toggle.icon), toggle.label) : null;
+  if (side && toggle) {
+    side.hidden = true;
+    void (a.maintains ?? Promise.resolve(false)).then((yes) => { side.hidden = !yes; }, () => {});
+    side.addEventListener("click", () => toggle.act(ed?.value() ?? ""));
+  }
+  ed = editor({ placeholder: "Add your comment here...", rows: 5,
+                action: el("span", { class: "hbs2-efoot-actions" }, side, go), submit: send });
   go.addEventListener("click", send);
   return el("div", { class: "hbs2-c hbs2-composer" },
     el("div", { class: "hbs2-c-face" }),
@@ -248,6 +266,63 @@ function composer(comment: (draft: string) => void): HTMLElement {
       el("div", { class: "hbs2-composer-title" }, el("strong", {}, "Add a comment"),
         el("span", { class: "hbs2-muted hbs2-small" }, "signed by you, on hbs2, after you review it")),
       ed.node));
+}
+
+// The labels in the side column, and for a maintainer GitHub's gear: pick
+// from the repository's labels or type new ones, then Apply. Apply only
+// carries the set to the extension's window, where it is reviewed and signed.
+function labelSection(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
+  const a = o.actions;
+  const shown = el("div", { class: "hbs2-side-labels" },
+    ...(t.labels.length ? t.labels.map((l) => el("span", { class: "hbs2-label" }, l))
+                        : [el("span", { class: "hbs2-muted" }, "None yet")]));
+  if (!a?.labels) return sideSection("Labels", shown);
+  const setLabels = a.labels;
+
+  const chosen = new Set(t.labels);
+  const known = [...new Set([...(a.knownLabels ?? []), ...t.labels, ...t.labels_requested])].sort();
+  const chips = el("div", { class: "hbs2-side-labels hbs2-pick" });
+  const drawChips = () => chips.replaceChildren(...known.map((l) => {
+    const c = el("button", { type: "button", class: `hbs2-label hbs2-chip${chosen.has(l) ? " is-on" : ""}`, "aria-pressed": String(chosen.has(l)) }, l);
+    c.addEventListener("click", () => { chosen.has(l) ? chosen.delete(l) : chosen.add(l); drawChips(); });
+    return c;
+  }));
+  drawChips();
+  const more = el("input", { class: "hbs2-input hbs2-small-in", placeholder: "New labels, comma separated" });
+  const apply = el("button", { type: "button", class: "hbs2-btn is-primary hbs2-small-btn" }, "Apply");
+  const cancel = el("button", { type: "button", class: "hbs2-btn hbs2-small-btn" }, "Cancel");
+  const panel = el("div", { class: "hbs2-label-edit" }, chips, more, el("div", { class: "hbs2-edit-actions" }, cancel, apply));
+  panel.hidden = true;
+  const gear = el("button", { type: "button", class: "hbs2-gear", title: "Edit labels" }, "Edit");
+  gear.hidden = true;
+  void (a.maintains ?? Promise.resolve(false)).then((yes) => { gear.hidden = !yes; }, () => {});
+  gear.addEventListener("click", () => { panel.hidden = !panel.hidden; shown.hidden = !panel.hidden; });
+  cancel.addEventListener("click", () => { panel.hidden = true; shown.hidden = false; });
+  apply.addEventListener("click", () => {
+    const extra = more.value.split(",").map((l) => l.trim()).filter((l) => l.length > 0);
+    setLabels([...new Set([...chosen, ...extra])]);
+  });
+  return el("div", { class: "hbs2-side-sec" },
+    el("h3", { class: "hbs2-side-head" }, "Labels", gear), shown, panel);
+}
+
+// What the author asked for, and for a maintainer the one click that grants it.
+// Only what is still asked for: a label already applied is no longer a request.
+function askedSection(t: ThreadDoc, o: ThreadViewOptions): HTMLElement | null {
+  const asked = t.labels_requested.filter((l) => !t.labels.includes(l));
+  if (!asked.length) return null;
+  const a = o.actions;
+  const grant = a?.labels ? el("button", { type: "button", class: "hbs2-btn hbs2-small-btn" }, "Apply these") : null;
+  if (grant && a?.labels) {
+    const setLabels = a.labels;
+    grant.hidden = true;
+    void (a.maintains ?? Promise.resolve(false)).then((yes) => { grant.hidden = !yes; }, () => {});
+    grant.addEventListener("click", () => setLabels([...new Set([...t.labels, ...asked])]));
+  }
+  return sideSection("Asked for", el("div", { class: "hbs2-side-labels" },
+      ...asked.map((l) => el("span", { class: "hbs2-label is-asked" }, l))),
+    el("p", { class: "hbs2-muted hbs2-small" }, "Labels the author asked for. Only a maintainer applies labels."),
+    grant);
 }
 
 function side(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
@@ -259,17 +334,11 @@ function side(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
       el("p", { class: "hbs2-small" }, "tip ", el("code", { title: pr.tip }, pr.tip.slice(0, 7))),
       el("p", { class: "hbs2-muted hbs2-small" }, "Review it locally: ",
         el("code", {}, `hbs2-hub pr checkout --number ${t.number ?? "?"}`))) : null,
-    sideSection("Labels", t.labels.length
-      ? el("div", { class: "hbs2-side-labels" }, ...t.labels.map((l) => el("span", { class: "hbs2-label" }, l)))
-      : el("span", { class: "hbs2-muted" }, "None yet")),
+    labelSection(t, o),
     sideSection("Assignees", t.assignees.length
       ? el("div", {}, ...t.assignees.map((a) => el("div", { class: "hbs2-side-person" }, identiconEl(a, 20), " ", short(a))))
       : el("span", { class: "hbs2-muted" }, "No one assigned")),
-    t.labels_requested.length
-      ? sideSection("Asked for", el("div", { class: "hbs2-side-labels" },
-          ...t.labels_requested.map((l) => el("span", { class: "hbs2-label is-asked" }, l))),
-          el("p", { class: "hbs2-muted hbs2-small" }, "Labels the author asked for. Only a maintainer applies labels."))
-      : null,
+    askedSection(t, o),
     sideSection("Participants", el("div", { class: "hbs2-side-faces" },
       ...[...new Set([t.author, ...t.comments.map((c) => c.author)])].map((k) => {
         const f = identiconEl(k, 26);

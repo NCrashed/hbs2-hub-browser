@@ -58,7 +58,7 @@ export async function pointer(owner: string, repo: string): Promise<Pointer> {
   return (await send({ kind: "pointer", owner, repo })) as unknown as Pointer;
 }
 
-export async function open(page: "repo" | "thread" | "compose", params: { [k: string]: string }): Promise<void> {
+export async function open(page: "repo" | "thread" | "compose" | "inbox", params: { [k: string]: string }): Promise<void> {
   await send({ kind: "open", page, params });
 }
 

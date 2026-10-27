@@ -10,7 +10,7 @@
 // comment) is shown back here in fields the person can read and change; none
 // of it is acted on without the review.
 import { HubError, call, changed, restartHost } from "../lib/client.ts";
-import { missing, planOf, roleOf, textOf, defaultOnto, NO_ROLE } from "../lib/compose.ts";
+import { missing, planOf, roleOf, textOf, defaultOnto, MAINTAINER_ONLY, NO_ROLE } from "../lib/compose.ts";
 import type { Form, Op, Plan, Role, Target } from "../lib/compose.ts";
 import { asThread } from "../lib/docs.ts";
 import type { ThreadDoc } from "../lib/docs.ts";
@@ -22,7 +22,7 @@ import { iconEl } from "../lib/threadview.ts";
 const q = new URLSearchParams(location.search);
 const main = document.querySelector("main")!;
 
-const op = (["issue", "comment", "pr", "land"] as const).find((o) => o === q.get("op")) ?? null;
+const op = (["issue", "comment", "pr", "land", "close", "reopen", "label"] as const).find((o) => o === q.get("op")) ?? null;
 const repo = q.get("key") ?? "";
 const kind: "issue" | "pr" = q.get("kind") === "pr" || op === "pr" || op === "land" ? "pr" : "issue";
 const numberText = q.get("number");
@@ -36,7 +36,13 @@ const TITLES: Record<Op, string> = {
   comment: "Comment on hbs2",
   pr: "New pull request on hbs2",
   land: "Merge pull request",
+  close: "Close on hbs2",
+  reopen: "Reopen on hbs2",
+  label: "Labels on hbs2",
 };
+
+// The ops that act on a thread, and those whose page already said everything.
+const ON_THREAD: readonly Op[] = ["comment", "land", "close", "reopen", "label"];
 
 function fail(e: unknown): HTMLElement {
   const err = e instanceof HubError ? e.error : null;
@@ -117,10 +123,15 @@ function form(role: Role, t: ThreadDoc | null, again: Form): Promise<Form> {
           "The branches of your working clone. Only the commits on From that are not on the target travel."));
         read = () => ({ title: title.value, body: ed.value(), from: from.value, onto: onto.value });
       }
-    } else if (op === "comment") {
-      const ed = editor({ initial: again.body ?? q.get("body") ?? "", placeholder: "Leave a comment" });
-      parts.push(field("Add a comment", ed.node));
+    } else if (op === "comment" || op === "close" || op === "reopen") {
+      const ed = editor({ initial: again.body ?? q.get("body") ?? "",
+                          placeholder: op === "comment" ? "Leave a comment" : "A note, published as a comment (optional)" });
+      parts.push(field(op === "comment" ? "Add a comment" : "Note", ed.node));
       read = () => ({ body: ed.value() });
+    } else if (op === "label") {
+      const input = el("input", { class: "hbs2-input", placeholder: "bug, docs", value: again.labels ?? q.get("labels") ?? "" });
+      parts.push(field("Labels", input, "Comma separated. They replace the thread's labels; empty removes them all."));
+      read = () => ({ labels: input.value });
     } else if (op === "land") {
       const pr = t?.pr;
       const msg = el("textarea", { class: "hbs2-input", rows: "3", placeholder: "Default: Merge hbs2 pull request #N from <branch>, and the title" }, again.message ?? "");
@@ -160,8 +171,10 @@ function form(role: Role, t: ThreadDoc | null, again: Form): Promise<Form> {
 function reviewed(plan: Plan, rehearsal: string, notes: string): Promise<boolean> {
   return new Promise((done) => {
     const back = el("button", { type: "button", class: "hbs2-btn" },
-      op === "land" ? "Change options" : op === "comment" ? "Edit here" : "Back to the form");
-    const body = typeof plan.args["body"] === "string" ? plan.args["body"] : "";
+      op === "land" ? "Change options" : op && ON_THREAD.includes(op) ? "Edit here" : "Back to the form");
+    const text = plan.args["body"] ?? plan.args["note"];
+    const body = typeof text === "string" ? text : "";
+    const labels = Array.isArray(plan.args["labels"]) ? plan.args["labels"].filter((l): l is string => typeof l === "string") : null;
     const go = el("button", { type: "button", class: "hbs2-btn is-primary" }, plan.tool === "pr_land" ? "Merge, push and publish" : "Sign and send");
     back.addEventListener("click", () => done(false));
     go.addEventListener("click", () => done(true));
@@ -169,8 +182,11 @@ function reviewed(plan: Plan, rehearsal: string, notes: string): Promise<boolean
       el("h2", {}, "Review"),
       el("p", {}, plan.what),
       body ? el("div", { class: "hbs2-c-box hbs2-reviewed" },
-        el("div", { class: "hbs2-c-head" }, el("strong", {}, op === "comment" ? "Your comment" : "The description")),
+        el("div", { class: "hbs2-c-head" }, el("strong", {}, op === "comment" ? "Your comment" : op === "close" || op === "reopen" ? "Your note" : "The description")),
         el("div", { class: "hbs2-c-body" }, markdownEl(body))) : null,
+      op === "label" ? el("div", { class: "hbs2-side-labels hbs2-reviewed" },
+        ...(labels && labels.length ? labels.map((l) => el("span", { class: "hbs2-label" }, l))
+                                    : [el("span", { class: "hbs2-muted" }, "No labels")])) : null,
       el("table", { class: "hbs2-sum" },
         el("tr", {}, el("td", {}, "Tool"), el("td", {}, el("code", {}, plan.tool))),
         el("tr", {}, el("td", {}, "Repository"), el("td", {}, el("code", {}, repo))),
@@ -187,7 +203,7 @@ function reviewed(plan: Plan, rehearsal: string, notes: string): Promise<boolean
 }
 
 async function main_(): Promise<void> {
-  if (!op || !isRepoKey(repo) || ((op === "comment" || op === "land") && number === null)) {
+  if (!op || !isRepoKey(repo) || (ON_THREAD.includes(op) && number === null)) {
     main.replaceChildren(el("p", {}, "This link does not name something to write."));
     return;
   }
@@ -206,9 +222,9 @@ async function main_(): Promise<void> {
   if (number !== null) {
     try { thread = asThread(await call(`${kind}_show`, { repo, number })); } catch (e) { main.append(fail(e)); return; }
   }
-  if (op === "land" && !role.maintainer) {
+  if (MAINTAINER_ONLY.includes(op) && !role.maintainer) {
     main.replaceChildren(header(thread), el("div", { class: "hbs2-flash is-error" },
-      "Merging needs a maintainer key in this clone, and the key it signs with is not one."));
+      "This needs a maintainer key in this clone, and the key it signs with is not one."));
     return;
   }
 
@@ -216,8 +232,9 @@ async function main_(): Promise<void> {
   // under the thread, a merge with its defaults. The review is where it is
   // read back and signed, so asking for it a second time was only a chore.
   const draft = q.get("body") ?? "";
-  let f: Form = op === "comment" && draft.trim() ? { body: draft } : {};
-  let skip = (op === "comment" && draft.trim() !== "") || op === "land";
+  let f: Form = op === "label" ? { labels: q.get("labels") ?? "" }
+              : (op === "comment" || op === "close" || op === "reopen") && draft.trim() ? { body: draft } : {};
+  let skip = (op === "comment" && draft.trim() !== "") || op === "land" || op === "close" || op === "reopen" || op === "label";
   for (;;) {
     if (!skip) f = await form(role, thread, f);
     skip = false;

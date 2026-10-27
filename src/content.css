@@ -54,4 +54,6 @@
 
 /* The first line of the hbs2 rows, with the button that files one. */
 .hbs2-bar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--borderColor-muted, #d1d9e0b3); font-size: 12px; }
-.hbs2-bar .hbs2-new { margin-left: auto; font-size: 12px; padding: 3px 12px; }
+.hbs2-bar .hbs2-new { font-size: 12px; padding: 3px 12px; }
+.hbs2-bar .hbs2-spacer { flex: 1; }
+.hbs2-bar [hidden] { display: none !important; }

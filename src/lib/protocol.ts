@@ -40,7 +40,7 @@ export function toolInfo(t: Json): ToolInfo | null {
 export type Ask =
   | { kind: "call"; tool: string; args: { [k: string]: Json } }
   | { kind: "pointer"; owner: string; repo: string }
-  | { kind: "open"; page: "repo" | "thread" | "compose"; params: { [k: string]: string } }
+  | { kind: "open"; page: "repo" | "thread" | "compose" | "inbox"; params: { [k: string]: string } }
   /** A write finished: the GitHub tab the form was opened from redraws. */
   | { kind: "changed"; tab: number | null; key: string }
   /** Close the connection to the host, so the next call starts the one installed now. */

@@ -16,7 +16,9 @@ import { call, open, pointer } from "./lib/client.ts";
 import type { Pointer } from "./lib/client.ts";
 import { asIndex, asThread } from "./lib/docs.ts";
 import type { IndexRow } from "./lib/docs.ts";
-import { roleOf } from "./lib/compose.ts";
+import { roleOf, NO_ROLE } from "./lib/compose.ts";
+import type { Role } from "./lib/compose.ts";
+import { threadActions } from "./lib/actions.ts";
 import type { TabNote } from "./lib/protocol.ts";
 import { el } from "./lib/dom.ts";
 import { ago, filterRows, parseQuery } from "./lib/query.ts";
@@ -26,19 +28,18 @@ const MARK = "data-hbs2-hub";
 
 const pointers = new Map<string, Promise<Pointer>>();
 const lists = new Map<string, Promise<IndexRow[]>>();
-const maintains = new Map<string, Promise<boolean>>();
+const standings = new Map<string, Promise<Role>>();
 
-// Whether the working clone signs as a maintainer, asked without the network.
-function canLand(key: string): Promise<boolean> {
-  if (!maintains.has(key)) {
-    const p = call("status", { repo: key, local: true }).then((v) => roleOf(v).maintainer, () => false);
-    maintains.set(key, p);
-  }
-  return maintains.get(key)!;
+// Who the working clone signs as, asked without the network: whether it is a
+// maintainer, and how many letters wait for one.
+function standing(key: string): Promise<Role> {
+  if (!standings.has(key)) standings.set(key, call("status", { repo: key, local: true }).then(roleOf, () => NO_ROLE));
+  return standings.get(key)!;
 }
 
-// A draft is carried in the form's address, so it is bounded.
-const DRAFT_MAX = 6000;
+function maintainer(key: string): Promise<boolean> {
+  return standing(key).then((r) => r.maintainer);
+}
 
 function compose(params: { [k: string]: string }): void {
   void open("compose", params);
@@ -107,14 +108,14 @@ async function showThread(route: Route, key: string, gh: string): Promise<void> 
   try {
     const t = asThread(await call(`${route.kind}_show`, { repo: key, number: route.number }));
     document.title = `${t.title ?? ""} \u00b7 hbs2 #${t.number ?? "?"} \u00b7 ${gh}`;
-    const n = String(route.number);
+    // The labels the repository already uses, offered when a maintainer edits.
+    const known = await Promise.all((["issue", "pr"] as const).map((k) => rowsOf(key, k).catch(() => [] as IndexRow[])))
+      .then((ls) => ls.flat().flatMap((r) => r.labels));
     host.replaceChildren(threadView(t, {
       repo: key,
       back: { label: route.kind === "pr" ? "Pull requests" : "Issues", go: () => leaveThread() },
-      actions: {
-        comment: (draft) => compose({ op: "comment", key, gh, kind: route.kind, number: n, body: draft.slice(0, DRAFT_MAX) }),
-        ...(route.kind === "pr" ? { land: () => compose({ op: "land", key, gh, number: n }), canLand: canLand(key) } : {}),
-      },
+      actions: threadActions({ compose, key, gh, kind: route.kind, number: route.number,
+                               maintains: maintainer(key), knownLabels: known }),
     }));
   } catch (e) {
     host.replaceChildren(el("div", { class: "hbs2-thread" }, "hbs2: ", e instanceof Error ? e.message : String(e)));
@@ -226,11 +227,20 @@ function barEl(kind: "issue" | "pr", key: string, gh: string, n: number): HTMLEl
   const go = el("button", { type: "button", class: "hbs2-btn is-primary hbs2-new" },
     kind === "pr" ? "New pull request on hbs2" : "New issue on hbs2");
   go.addEventListener("click", () => compose({ op: kind, key, gh }));
+  // The maintainer's inbox, with what is waiting in it, once the clone says.
+  const inbox = el("button", { type: "button", class: "hbs2-btn hbs2-new" }, "Inbox");
+  inbox.hidden = true;
+  inbox.addEventListener("click", () => void open("inbox", { key, gh }));
+  void standing(key).then((r) => {
+    if (!r.maintainer) return;
+    if (r.waiting) inbox.append(" ", el("span", { class: "hbs2-tab-count" }, String(r.waiting)));
+    inbox.hidden = false;
+  });
   return el("li", { class: "hbs2-bar" },
     el("span", { class: "hbs2-badge" }, "hbs2"),
     el("span", { class: "hbs2-muted" },
       `${n} ${kind === "pr" ? "pull request" : "issue"}${n === 1 ? "" : "s"} on hbs2 for this search`),
-    go);
+    el("span", { class: "hbs2-spacer" }), inbox, go);
 }
 
 function countOnTabs(all: IndexRow[]): void {
@@ -325,7 +335,7 @@ addEventListener("popstate", () => tick());
 chrome.runtime.onMessage.addListener((m: TabNote) => {
   if (m?.kind !== "hbs2-changed") return;
   lists.clear();
-  maintains.delete(m.key);
+  standings.delete(m.key);
   mine("thread-host")?.remove();
   mine("rows")?.remove();
   for (const e of document.querySelectorAll(`[${MARK}="count"]`)) e.remove();

@@ -9,7 +9,10 @@
 // merging one is a maintainer's (pr_land), and publishes by itself.
 import type { Json } from "./protocol.ts";
 
-export type Op = "issue" | "comment" | "pr" | "land";
+export type Op = "issue" | "comment" | "pr" | "land" | "close" | "reopen" | "label";
+
+/** What only a maintainer may do: the canon verbs with no letter behind them. */
+export const MAINTAINER_ONLY: readonly Op[] = ["land", "close", "reopen", "label"];
 
 export interface Role {
   /** This clone signs canon as a key that may bless it. */
@@ -21,9 +24,11 @@ export interface Role {
   /** The branch the clone's hbs23 remote names as HEAD, when it knows. */
   onto: string | null;
   branches: string[];
+  /** Letters waiting in the repository's mailbox, when the peer could say. */
+  waiting: number | null;
 }
 
-export const NO_ROLE: Role = { maintainer: false, signer: null, branch: null, onto: null, branches: [] };
+export const NO_ROLE: Role = { maintainer: false, signer: null, branch: null, onto: null, branches: [], waiting: null };
 
 function obj(v: Json | undefined): { [k: string]: Json } | null {
   return v && typeof v === "object" && !Array.isArray(v) ? v : null;
@@ -39,6 +44,8 @@ export function roleOf(status: Json): Role {
   if (!s) return NO_ROLE;
   const signer = obj(s["signer"]);
   const clone = obj(s["clone"]);
+  const mailbox = obj(s["mailbox"]);
+  const waiting = mailbox?.["waiting"];
   const bs = clone?.["branches"];
   return {
     maintainer: s["signing"] === true && signer?.["maintainer"] === true,
@@ -46,6 +53,7 @@ export function roleOf(status: Json): Role {
     branch: str(clone?.["branch"]),
     onto: str(clone?.["onto"]),
     branches: Array.isArray(bs) ? bs.filter((b): b is string => typeof b === "string") : [],
+    waiting: typeof waiting === "number" ? waiting : null,
   };
 }
 
@@ -115,6 +123,23 @@ export function planOf(op: Op, role: Role, f: Form, t: Target): Plan {
                        onto: f.onto || defaultOnto(role), ...(f.from ? { from: f.from } : {} as Args) },
                what: "Bundles the commits on the branch that are not on the target and sends them "
                      + "as a letter, signed by your identity. It appears once a maintainer accepts it." };
+    case "close":
+    case "reopen": {
+      const note: Args = f.body?.trim() ? { note: f.body } : {};
+      const what = t.kind === "pr" ? "pull request" : "issue";
+      return { tool: op === "close" ? "issue_close" : "issue_reopen", publish: true,
+               args: { repo: t.repo, ...thread, ...note },
+               what: `${op === "close" ? "Closes" : "Reopens"} the ${what} in canon, signed by your maintainer key`
+                     + (f.body?.trim() ? ", with your comment as the note" : "") + ", and publishes canon." };
+    }
+    case "label": {
+      const labels = labelsOf(f.labels ?? "");
+      return { tool: "issue_label", publish: true,
+               args: { repo: t.repo, ...thread, ...(labels.length ? { labels } : { clear: true }) },
+               what: labels.length
+                 ? "Sets the labels to exactly these, in canon, signed by your maintainer key, and publishes canon."
+                 : "Removes every label, in canon, signed by your maintainer key, and publishes canon." };
+    }
     case "land":
       return { tool: "pr_land", publish: false,
                args: { repo: t.repo, number: t.number ?? 0,

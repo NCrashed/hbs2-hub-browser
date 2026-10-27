@@ -41,6 +41,7 @@ for (const [name, manifest] of Object.entries(targets)) {
       "pages/thread": "src/pages/thread.ts",
       "pages/options": "src/pages/options.ts",
       "pages/compose": "src/pages/compose.ts",
+      "pages/inbox": "src/pages/inbox.ts",
     },
     bundle: true,
     format: "iife",
@@ -48,7 +49,7 @@ for (const [name, manifest] of Object.entries(targets)) {
     outdir: out,
     logLevel: "warning",
   });
-  for (const f of ["repo.html", "thread.html", "options.html", "compose.html", "style.css", "compose.css"]) cpSync(`src/pages/${f}`, `${out}/pages/${f}`);
+  for (const f of ["repo.html", "thread.html", "options.html", "compose.html", "inbox.html", "style.css", "compose.css"]) cpSync(`src/pages/${f}`, `${out}/pages/${f}`);
   cpSync("src/content.css", `${out}/content.css`);
   cpSync("src/thread.css", `${out}/thread.css`);
   writeFileSync(`${out}/manifest.json`, JSON.stringify(manifest, null, 2) + "\n");

@@ -221,3 +221,22 @@
 .hbs2-composer-title { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 8px; font-size: 16px; }
 .hbs2-composer-title strong { white-space: nowrap; }
 .hbs2-reviewed { margin: 0 0 16px; }
+
+/* Closing beside Comment, and the label editor in the side column. */
+.hbs2-efoot-actions { display: inline-flex; gap: 8px; }
+.hbs2-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.hbs2-toggle svg { fill: var(--fgColor-done, #8250df); }
+.hbs2-side-head { display: flex; align-items: center; justify-content: space-between; }
+.hbs2-gear {
+  font: inherit; font-size: 12px; padding: 0 4px; cursor: pointer; background: none; border: 0;
+  color: var(--fgColor-muted, #59636e);
+}
+.hbs2-gear:hover { color: var(--fgColor-accent, #0969da); }
+.hbs2-label-edit { display: flex; flex-direction: column; gap: 8px; }
+.hbs2-label-edit[hidden], .hbs2-side-sec [hidden] { display: none !important; }
+.hbs2-pick { gap: 4px; }
+.hbs2-chip { font: inherit; font-size: 12px; cursor: pointer; opacity: 0.55; border: 0; color: inherit; }
+.hbs2-chip.is-on { opacity: 1; box-shadow: inset 0 0 0 1px var(--fgColor-accent, #0969da); }
+.hbs2-small-in { font-size: 12px; padding: 3px 8px; }
+.hbs2-small-btn { font-size: 12px; padding: 3px 10px; line-height: 18px; }
+.hbs2-edit-actions { display: flex; justify-content: flex-end; gap: 6px; }
