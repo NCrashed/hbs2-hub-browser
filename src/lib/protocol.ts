@@ -42,7 +42,9 @@ export type Ask =
   | { kind: "pointer"; owner: string; repo: string }
   | { kind: "open"; page: "repo" | "thread" | "compose"; params: { [k: string]: string } }
   /** A write finished: the GitHub tab the form was opened from redraws. */
-  | { kind: "changed"; tab: number | null; key: string };
+  | { kind: "changed"; tab: number | null; key: string }
+  /** Close the connection to the host, so the next call starts the one installed now. */
+  | { kind: "restart" };
 
 /** What the background worker tells a GitHub tab. */
 export interface TabNote {

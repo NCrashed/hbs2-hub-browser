@@ -62,6 +62,11 @@ export async function open(page: "repo" | "thread" | "compose", params: { [k: st
   await send({ kind: "open", page, params });
 }
 
+/** Start the host afresh on the next call: after an upgrade, the old one is still running. */
+export async function restartHost(): Promise<void> {
+  await send({ kind: "restart" });
+}
+
 /** Tell the GitHub tab a form came from that the repository changed. */
 export async function changed(tab: number | null, key: string): Promise<void> {
   await send({ kind: "changed", tab, key });

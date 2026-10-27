@@ -131,6 +131,16 @@ chrome.runtime.onConnect.addListener((p) => {
         await chrome.tabs.create({ url: chrome.runtime.getURL(path) + "?" + new URLSearchParams(q.params).toString() });
       }
       reply({ kind: "result", seq, ok: true, result: null });
+    } else if (q.kind === "restart") {
+      // From a form only. The host reads EOF on its stdin and exits; nothing
+      // is in flight from a form that is showing an error.
+      if (from === "page" && port) {
+        const old = port;
+        port = null;
+        table = null;
+        old.disconnect();
+      }
+      reply({ kind: "result", seq, ok: true, result: null });
     } else if (q.kind === "changed") {
       // From a form only: a GitHub page has nothing to announce.
       if (from === "page" && q.tab !== null) {

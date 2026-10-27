@@ -9,7 +9,7 @@
 // What the GitHub page passed in (a repository key, a thread number, a draft
 // comment) is shown back here in fields the person can read and change; none
 // of it is acted on without the review.
-import { HubError, call, changed } from "../lib/client.ts";
+import { HubError, call, changed, restartHost } from "../lib/client.ts";
 import { missing, planOf, roleOf, textOf, defaultOnto, NO_ROLE } from "../lib/compose.ts";
 import type { Form, Op, Plan, Role, Target } from "../lib/compose.ts";
 import { asThread } from "../lib/docs.ts";
@@ -45,6 +45,20 @@ function fail(e: unknown): HTMLElement {
       el("p", {}, "Writing needs a working clone of this repository on this machine, and none is set."),
       el("p", {}, "Clone it, or name the one you have:"),
       el("pre", {}, `git clone hbs23://${repo} <dir>\ngit config --global hbs2-hub.${repo}.clone <dir>`));
+  }
+  // A host older than this extension: it refuses an argument or a tool this
+  // page was written for. Say that, and how to fix it, rather than the refusal.
+  if (/unknown argument\(s\)/.test(message) || err?.meaning === "unknown-tool" || err?.meaning === "not-allowed") {
+    // The host keeps running after an upgrade, so the new one is started from here.
+    const again = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Restart the host and try again");
+    again.addEventListener("click", () => { void restartHost().then(() => location.reload()); });
+    return el("div", { class: "hbs2-flash is-error" },
+      el("p", {}, "The hbs2-hub answering here is older than this extension. Writing needs 0.26.0.1 or later."),
+      el("p", {}, "Update it and let it write the browser's launcher again:"),
+      el("pre", {}, `nix profile upgrade hbs2\nhbs2-hub native-host --install --chrome-id ${chrome.runtime.id}`),
+      el("p", {}, "If you have updated already, the old one is still running:"),
+      el("div", { class: "hbs2-actions" }, again),
+      el("p", { class: "hbs2-muted" }, message));
   }
   if (/author|sender/.test(message) && /no (author|sender)/.test(message)) {
     return el("div", { class: "hbs2-flash is-error" },
