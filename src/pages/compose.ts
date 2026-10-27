@@ -63,7 +63,7 @@ function fail(e: unknown): HTMLElement {
     const again = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Restart the host and try again");
     again.addEventListener("click", () => { void restartHost().then(() => location.reload()); });
     return el("div", { class: "hbs2-flash is-error" },
-      el("p", {}, "The hbs2-hub answering here is older than this extension. Writing needs 0.26.0.1 or later."),
+      el("p", {}, "The hbs2-hub answering here is older than this extension. Writing needs 0.26.0.2 or later."),
       el("p", {}, "Update it and let it write the browser's launcher again:"),
       el("pre", {}, `nix profile upgrade hbs2\nhbs2-hub native-host --install --chrome-id ${chrome.runtime.id}`),
       el("p", {}, "If you have updated already, the old one is still running:"),

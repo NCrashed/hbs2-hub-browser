@@ -13,7 +13,7 @@ export function refusal(e: unknown): HTMLElement {
     const again = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Restart the host and try again");
     again.addEventListener("click", () => { void restartHost().then(() => location.reload()); });
     return el("div", { class: "hbs2-flash is-error" },
-      el("p", {}, "The hbs2-hub answering here is older than this extension; update it to 0.26.0.1 or later."),
+      el("p", {}, "The hbs2-hub answering here is older than this extension; update it to 0.26.0.2 or later."),
       el("div", { class: "hbs2-actions" }, again), el("p", { class: "hbs2-muted" }, m));
   }
   return el("div", { class: "hbs2-flash is-error" }, el("pre", { class: "hbs2-out" }, m));
