@@ -40,4 +40,9 @@ async function main_(): Promise<void> {
   }
 }
 
+// A form opened from here finished writing: draw the thread again.
+chrome.runtime.onMessage.addListener((m: { kind?: string }) => {
+  if (m?.kind === "hbs2-changed") void main_();
+});
+
 void main_();

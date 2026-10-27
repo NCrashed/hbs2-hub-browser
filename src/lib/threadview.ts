@@ -9,6 +9,7 @@ import type { Comment, ThreadDoc } from "./docs.ts";
 import { el, markdownEl } from "./dom.ts";
 import { identiconEl } from "./identicon.ts";
 import { ago } from "./query.ts";
+import { editor } from "./editor.ts";
 import { fileName, parseDiff } from "./diff.ts";
 import type { DiffFile } from "./diff.ts";
 
@@ -226,22 +227,26 @@ function mergeBox(onto: string, land: () => void, can: Promise<boolean> | undefi
   return box;
 }
 
-// GitHub's comment box at the end of the conversation. The text is carried to
-// the extension's form, where it is shown again and nothing is sent without
-// the person's review: this box sits on a page others can write to.
+// GitHub's comment box at the end of the conversation, with its Write and
+// Preview tabs. "Comment" carries the text to the extension's window, which
+// opens on the review: it shows the comment as it will read and is where it
+// is signed. This box sits on a page others can write to, so it never signs.
 function composer(comment: (draft: string) => void): HTMLElement {
-  const area = el("textarea", { class: "hbs2-compose-area", placeholder: "Add a comment on hbs2", rows: "4" });
   const go = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Comment");
-  go.addEventListener("click", () => comment(area.value));
+  let ed: ReturnType<typeof editor> | null = null;
+  const send = () => {
+    if (!ed) return;
+    if (!ed.value().trim()) { ed.focus(); return; }
+    comment(ed.value());
+  };
+  ed = editor({ placeholder: "Add your comment here...", rows: 5, action: go, submit: send });
+  go.addEventListener("click", send);
   return el("div", { class: "hbs2-c hbs2-composer" },
     el("div", { class: "hbs2-c-face" }),
-    el("div", { class: "hbs2-c-box" },
-      el("div", { class: "hbs2-c-head" }, el("strong", {}, "Add a comment"),
-        el("span", { class: "hbs2-c-head-right hbs2-muted" }, "signed by you, on hbs2")),
-      el("div", { class: "hbs2-c-body" }, area,
-        el("div", { class: "hbs2-composer-actions" },
-          el("span", { class: "hbs2-muted hbs2-small" }, "Markdown is supported. You review it before it is signed."),
-          go))));
+    el("div", { class: "hbs2-composer-box" },
+      el("div", { class: "hbs2-composer-title" }, el("strong", {}, "Add a comment"),
+        el("span", { class: "hbs2-muted hbs2-small" }, "signed by you, on hbs2, after you review it")),
+      ed.node));
 }
 
 function side(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {

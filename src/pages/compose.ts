@@ -15,6 +15,7 @@ import type { Form, Op, Plan, Role, Target } from "../lib/compose.ts";
 import { asThread } from "../lib/docs.ts";
 import type { ThreadDoc } from "../lib/docs.ts";
 import { el, markdownEl, shortKey } from "../lib/dom.ts";
+import { editor } from "../lib/editor.ts";
 import { isRepoKey } from "../lib/pointer.ts";
 import { iconEl } from "../lib/threadview.ts";
 
@@ -68,31 +69,6 @@ function fail(e: unknown): HTMLElement {
   return el("div", { class: "hbs2-flash is-error" }, el("pre", { class: "hbs2-out" }, message));
 }
 
-// A body editor with GitHub's Write and Preview tabs.
-function editor(initial: string, placeholder: string): { node: HTMLElement; value: () => string } {
-  const area = el("textarea", { class: "hbs2-input hbs2-area", placeholder, rows: "10" }, initial);
-  const preview = el("div", { class: "hbs2-md hbs2-preview" });
-  preview.hidden = true;
-  const write = el("button", { type: "button", class: "hbs2-etab is-selected" }, "Write");
-  const show = el("button", { type: "button", class: "hbs2-etab" }, "Preview");
-  const pick = (p: boolean) => {
-    area.hidden = p;
-    preview.hidden = !p;
-    write.classList.toggle("is-selected", !p);
-    show.classList.toggle("is-selected", p);
-    if (p) preview.replaceChildren(area.value.trim() ? markdownEl(area.value) : el("p", { class: "hbs2-muted" }, "Nothing to preview"));
-  };
-  write.addEventListener("click", () => pick(false));
-  show.addEventListener("click", () => pick(true));
-  return {
-    node: el("div", { class: "hbs2-editor" },
-      el("div", { class: "hbs2-etabs" }, write, show),
-      area, preview,
-      el("div", { class: "hbs2-hint hbs2-muted" }, "Markdown is supported.")),
-    value: () => area.value,
-  };
-}
-
 function field(label: string, input: HTMLElement, hint?: string): HTMLElement {
   return el("label", { class: "hbs2-field" },
     el("span", { class: "hbs2-flabel" }, label), input,
@@ -126,7 +102,7 @@ function form(role: Role, t: ThreadDoc | null, again: Form): Promise<Form> {
 
     if (op === "issue" || op === "pr") {
       const title = el("input", { class: "hbs2-input hbs2-title-in", placeholder: "Title", value: again.title ?? "" });
-      const ed = editor(again.body ?? "", op === "pr" ? "What does this change, and why?" : "Describe the problem, and how to reproduce it.");
+      const ed = editor({ initial: again.body ?? "", placeholder: op === "pr" ? "What does this change, and why?" : "Describe the problem, and how to reproduce it." });
       parts.push(field("Add a title", title), field("Add a description", ed.node));
       if (op === "issue") {
         const labels = el("input", { class: "hbs2-input", placeholder: "bug, docs", value: again.labels ?? "" });
@@ -142,7 +118,7 @@ function form(role: Role, t: ThreadDoc | null, again: Form): Promise<Form> {
         read = () => ({ title: title.value, body: ed.value(), from: from.value, onto: onto.value });
       }
     } else if (op === "comment") {
-      const ed = editor(again.body ?? q.get("body") ?? "", "Leave a comment");
+      const ed = editor({ initial: again.body ?? q.get("body") ?? "", placeholder: "Leave a comment" });
       parts.push(field("Add a comment", ed.node));
       read = () => ({ body: ed.value() });
     } else if (op === "land") {
@@ -183,13 +159,18 @@ function form(role: Role, t: ThreadDoc | null, again: Form): Promise<Form> {
 // The review: what dry_run said, and the one button that signs.
 function reviewed(plan: Plan, rehearsal: string, notes: string): Promise<boolean> {
   return new Promise((done) => {
-    const back = el("button", { type: "button", class: "hbs2-btn" }, "Back to the form");
+    const back = el("button", { type: "button", class: "hbs2-btn" },
+      op === "land" ? "Change options" : op === "comment" ? "Edit here" : "Back to the form");
+    const body = typeof plan.args["body"] === "string" ? plan.args["body"] : "";
     const go = el("button", { type: "button", class: "hbs2-btn is-primary" }, plan.tool === "pr_land" ? "Merge, push and publish" : "Sign and send");
     back.addEventListener("click", () => done(false));
     go.addEventListener("click", () => done(true));
     main.replaceChildren(...[header(null),
       el("h2", {}, "Review"),
       el("p", {}, plan.what),
+      body ? el("div", { class: "hbs2-c-box hbs2-reviewed" },
+        el("div", { class: "hbs2-c-head" }, el("strong", {}, op === "comment" ? "Your comment" : "The description")),
+        el("div", { class: "hbs2-c-body" }, markdownEl(body))) : null,
       el("table", { class: "hbs2-sum" },
         el("tr", {}, el("td", {}, "Tool"), el("td", {}, el("code", {}, plan.tool))),
         el("tr", {}, el("td", {}, "Repository"), el("td", {}, el("code", {}, repo))),
@@ -231,9 +212,15 @@ async function main_(): Promise<void> {
     return;
   }
 
-  let f: Form = {};
+  // WHAT WAS TYPED ON THE PAGE goes straight to the review: a comment written
+  // under the thread, a merge with its defaults. The review is where it is
+  // read back and signed, so asking for it a second time was only a chore.
+  const draft = q.get("body") ?? "";
+  let f: Form = op === "comment" && draft.trim() ? { body: draft } : {};
+  let skip = (op === "comment" && draft.trim() !== "") || op === "land";
   for (;;) {
-    f = await form(role, thread, f);
+    if (!skip) f = await form(role, thread, f);
+    skip = false;
     const plan = planOf(op, role, f, target);
     const progress = el("p", { class: "hbs2-muted" }, "Rehearsing");
     main.replaceChildren(header(thread), progress);

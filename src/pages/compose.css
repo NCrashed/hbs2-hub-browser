@@ -16,16 +16,6 @@
 .hbs2-input:focus { outline: 2px solid var(--fgColor-accent, #0969da); outline-offset: -1px; }
 .hbs2-title-in { font-size: 16px; padding: 8px 12px; }
 select.hbs2-input { width: auto; min-width: 180px; }
-.hbs2-editor { border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px; overflow: hidden; }
-.hbs2-editor .hbs2-area { border: 0; border-radius: 0; min-height: 200px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
-.hbs2-editor .hbs2-hint { padding: 6px 12px; border-top: 1px dashed var(--borderColor-default, #d1d9e0); }
-.hbs2-etabs { display: flex; gap: 4px; padding: 6px 8px 0; background: var(--bgColor-muted, #f6f8fa); border-bottom: 1px solid var(--borderColor-default, #d1d9e0); }
-.hbs2-etab {
-  font: inherit; font-size: 14px; padding: 6px 12px; margin-bottom: -1px; cursor: pointer; color: var(--fgColor-muted, #59636e);
-  background: none; border: 1px solid transparent; border-radius: 6px 6px 0 0;
-}
-.hbs2-etab.is-selected { color: var(--fgColor-default, #1f2328); background: var(--bgColor-default, #fff); border-color: var(--borderColor-default, #d1d9e0); border-bottom-color: var(--bgColor-default, #fff); }
-.hbs2-preview { min-height: 200px; padding: 8px 12px; }
 .hbs2-branches { display: flex; gap: 16px; flex-wrap: wrap; }
 .hbs2-check { display: flex; align-items: center; gap: 6px; margin: 0 0 16px; font-size: 14px; }
 .hbs2-landsum { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }

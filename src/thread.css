@@ -190,9 +190,26 @@
 .hbs2-merge-text { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
 .hbs2-merge-text .hbs2-muted { font-size: 12px; }
 .hbs2-composer .hbs2-c-face { width: 40px; height: 40px; border-radius: 50%; background: var(--bgColor-neutral-muted, #818b981f); }
-.hbs2-compose-area {
-  width: 100%; box-sizing: border-box; min-height: 100px; resize: vertical; padding: 8px 12px;
-  font: inherit; font-size: 14px; color: inherit; background: var(--bgColor-default, #fff);
-  border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px;
+
+/* The Markdown editor (editor.ts), under a thread and in the forms. */
+.hbs2-editor [hidden] { display: none !important; }
+.hbs2-editor { border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px; overflow: hidden; }
+.hbs2-etabs { display: flex; gap: 4px; padding: 6px 8px 0; background: var(--bgColor-muted, #f6f8fa); border-bottom: 1px solid var(--borderColor-default, #d1d9e0); }
+.hbs2-etab {
+  font: inherit; font-size: 14px; padding: 6px 12px; margin-bottom: -1px; cursor: pointer; color: var(--fgColor-muted, #59636e);
+  background: none; border: 1px solid transparent; border-radius: 6px 6px 0 0;
 }
-.hbs2-composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.hbs2-etab.is-selected { color: var(--fgColor-default, #1f2328); background: var(--bgColor-default, #fff); border-color: var(--borderColor-default, #d1d9e0); border-bottom-color: var(--bgColor-default, #fff); }
+.hbs2-preview { min-height: 120px; padding: 8px 12px; }
+.hbs2-editor .hbs2-area {
+  display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: 0; min-height: 120px; resize: vertical;
+  padding: 8px 12px; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: inherit;
+  background: var(--bgColor-default, #fff);
+}
+.hbs2-editor .hbs2-area:focus { outline: none; box-shadow: inset 0 0 0 2px var(--fgColor-accent, #0969da); }
+.hbs2-efoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-top: 1px dashed var(--borderColor-default, #d1d9e0); }
+.hbs2-efoot .hbs2-hint { font-size: 12px; }
+.hbs2-composer-box { flex: 1; min-width: 0; }
+.hbs2-composer-title { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 8px; font-size: 16px; }
+.hbs2-composer-title strong { white-space: nowrap; }
+.hbs2-reviewed { margin: 0 0 16px; }
