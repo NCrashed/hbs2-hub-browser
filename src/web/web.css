@@ -1,0 +1,23 @@
+/* The web build's own pieces (PEP-25): the top bar, the home page, the
+   repository page's header and tabs. Primer's variables, from style.css. */
+body { background: var(--bgColor-default, #fff); }
+.hbs2-site {
+  display: flex; align-items: center; gap: 12px; padding: 12px 24px;
+  background: var(--bgColor-muted, #f6f8fa); border-bottom: 1px solid var(--borderColor-default, #d1d9e0);
+}
+.hbs2-site a { color: var(--fgColor-default, #1f2328); text-decoration: none; }
+.hbs2-home { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; }
+.hbs2-crumb { display: inline-flex; gap: 8px; color: var(--fgColor-muted, #59636e); }
+.hbs2-crumb code { background: none; font-size: 14px; padding: 0; color: var(--fgColor-default, #1f2328); }
+.hbs2-spacer { flex: 1; }
+.hbs2-mode { font-size: 12px; padding: 2px 8px; border-radius: 2em; border: 1px solid var(--borderColor-default, #d1d9e0); color: var(--fgColor-muted, #59636e); }
+.hbs2-mode.is-public { color: var(--fgColor-accent, #0969da); border-color: currentColor; }
+.hbs2-mode.is-local { color: var(--fgColor-success, #1a7f37); border-color: currentColor; }
+
+.hbs2-home-list { display: flex; flex-direction: column; border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px; }
+.hbs2-home-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+.hbs2-home-item + .hbs2-home-item { border-top: 1px solid var(--borderColor-default, #d1d9e0); }
+.hbs2-home-item a { font-weight: 600; color: var(--fgColor-accent, #0969da); text-decoration: none; }
+.hbs2-open { display: flex; gap: 8px; margin: 16px 0; }
+.hbs2-open input { flex: 1; }
+

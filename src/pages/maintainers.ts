@@ -6,12 +6,14 @@ import { roleOf } from "../lib/compose.ts";
 import { el, shortKey } from "../lib/dom.ts";
 import { identiconEl } from "../lib/identicon.ts";
 import { isRepoKey } from "../lib/pointer.ts";
+import { siteBar } from "../lib/bar.ts";
 import { CANON_WARN, refusal, rehearse } from "../lib/rehearse.ts";
 
 const q = new URLSearchParams(location.search);
 const main = document.querySelector("main")!;
 const repo = q.get("key") ?? "";
 const gh = q.get("gh") ?? "";
+siteBar(isRepoKey(repo) ? repo : null);
 const tabText = q.get("tab");
 const tab = tabText && /^\d{1,12}$/.test(tabText) ? Number(tabText) : null;
 

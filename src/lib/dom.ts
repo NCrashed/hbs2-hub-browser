@@ -17,7 +17,7 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
     // Only https links leave the extension; anything else is not a link.
-    if (k === "href" && !/^(https:|#|\?|\.\/|[a-z]+\.html)/.test(v)) continue;
+    if (k === "href" && !/^(https:|#|\?|\.\.?\/|[a-z]+\.html)/.test(v)) continue;
     e.setAttribute(k, v);
   }
   for (const c of children) {

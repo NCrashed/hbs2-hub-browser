@@ -4,6 +4,7 @@
 // (`hub serve`, PEP-24): a call names a tool and its arguments and gets back a
 // document or a refusal, with progress on the way.
 import type { Answer, Ask, Envelope, HostError, Json } from "./protocol.ts";
+import { serverHello, webCall } from "./web.ts";
 
 export class HubError extends Error {
   constructor(public readonly error: HostError) {
@@ -45,6 +46,12 @@ function send(ask: Ask, progress: (t: string) => void = () => {}): Promise<Json>
 }
 
 export function call(tool: string, args: { [k: string]: Json }, progress?: (t: string) => void): Promise<Json> {
+  if (__WEB__) {
+    return webCall(tool, args, progress ?? (() => {})).then((r) => {
+      if (r.ok) return r.result;
+      throw new HubError(r.error);
+    });
+  }
   return send({ kind: "call", tool, args }, progress);
 }
 
@@ -59,15 +66,26 @@ export async function pointer(owner: string, repo: string): Promise<Pointer> {
 }
 
 export async function open(page: "repo" | "thread" | "compose" | "inbox", params: { [k: string]: string }): Promise<void> {
+  // On the web the form opens in this tab and comes back when it is done: the
+  // whole origin is the hub's own, so there is no other page to sit over.
+  if (__WEB__) { location.href = `${page}.html?${new URLSearchParams(params)}`; return; }
   await send({ kind: "open", page, params });
 }
 
 /** Start the host afresh on the next call: after an upgrade, the old one is still running. */
 export async function restartHost(): Promise<void> {
+  if (__WEB__) return;
   await send({ kind: "restart" });
 }
 
 /** Tell the GitHub tab a form came from that the repository changed. */
 export async function changed(tab: number | null, key: string): Promise<void> {
+  if (__WEB__) return;
   await send({ kind: "changed", tab, key });
+}
+
+/** Whether this frontend may write at all: a public server offers no tool that does. */
+export async function canWrite(): Promise<boolean> {
+  if (!__WEB__) return true;
+  return serverHello().then((h) => !h.read_only, () => false);
 }

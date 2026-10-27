@@ -50,14 +50,47 @@ for (const [name, manifest] of Object.entries(targets)) {
     },
     bundle: true,
     format: "iife",
+    define: { __WEB__: "false" },
     target: name === "chrome" ? "chrome120" : "firefox128",
     outdir: out,
     logLevel: "warning",
   });
-  for (const f of ["repo.html", "thread.html", "options.html", "compose.html", "inbox.html", "maintainers.html", "style.css", "compose.css"]) cpSync(`src/pages/${f}`, `${out}/pages/${f}`);
+  for (const f of ["repo.html", "thread.html", "options.html", "compose.html", "inbox.html", "maintainers.html", "style.css", "compose.css", "repo.css"]) cpSync(`src/pages/${f}`, `${out}/pages/${f}`);
   cpSync("icons", `${out}/icons`, { recursive: true, filter: (f) => !f.endsWith(".svg") });
   cpSync("src/content.css", `${out}/content.css`);
   cpSync("src/thread.css", `${out}/thread.css`);
   writeFileSync(`${out}/manifest.json`, JSON.stringify(manifest, null, 2) + "\n");
+  console.log(`built ${out}`);
+}
+
+// The web build, for `hbs2-hub serve` (PEP-25): the same pages with the HTTP
+// transport, a home page at the root, and no manifest, background or content
+// script. The layout is the extension's, so the pages' relative links hold.
+{
+  const out = "dist/web";
+  rmSync(out, { recursive: true, force: true });
+  mkdirSync(`${out}/pages`, { recursive: true });
+  await build({
+    entryPoints: {
+      home: "src/web/home.ts",
+      "pages/repo": "src/pages/repo.ts",
+      "pages/thread": "src/pages/thread.ts",
+      "pages/compose": "src/pages/compose.ts",
+      "pages/inbox": "src/pages/inbox.ts",
+      "pages/maintainers": "src/pages/maintainers.ts",
+    },
+    bundle: true,
+    format: "iife",
+    target: "es2022",
+    define: { __WEB__: "true" },
+    outdir: out,
+    logLevel: "warning",
+  });
+  for (const f of ["repo.html", "thread.html", "compose.html", "inbox.html", "maintainers.html", "style.css", "compose.css", "repo.css"]) cpSync(`src/pages/${f}`, `${out}/pages/${f}`);
+  cpSync("src/web/index.html", `${out}/index.html`);
+  cpSync("src/web/web.css", `${out}/web.css`);
+  cpSync("src/content.css", `${out}/content.css`);
+  cpSync("src/thread.css", `${out}/thread.css`);
+  cpSync("icons", `${out}/icons`, { recursive: true, filter: (f) => !f.endsWith(".svg") || f.endsWith("icons") });
   console.log(`built ${out}`);
 }

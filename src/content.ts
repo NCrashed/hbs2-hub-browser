@@ -22,7 +22,8 @@ import { threadActions } from "./lib/actions.ts";
 import type { TabNote } from "./lib/protocol.ts";
 import { el } from "./lib/dom.ts";
 import { ago, filterRows, parseQuery } from "./lib/query.ts";
-import { iconEl, stateLook, threadView } from "./lib/threadview.ts";
+import { threadView } from "./lib/threadview.ts";
+import { rowEl } from "./lib/rows.ts";
 
 const MARK = "data-hbs2-hub";
 
@@ -250,7 +251,7 @@ async function addRows(r: GithubRepo, key: string, gh: string): Promise<void> {
   if (!mine("rows")) {
     const ul = el("ul", { [MARK]: "rows", class: "hbs2-rows", role: "list", "aria-label": "hbs2 threads" },
       barEl(kind, key, gh, shown.length),
-      ...shown.map((t) => rowEl(t, kind, key, gh)));
+      ...shown.map((t) => rowEl(t, kind, `#hbs2/${kind}/${t.number ?? ""}`, { open: () => enterThread(kind, t.number ?? 0), badge: true })));
     list.before(ul);
   }
 
@@ -297,41 +298,6 @@ function countOnTabs(all: IndexRow[]): void {
   }
 }
 
-function rowEl(t: IndexRow, kind: "issue" | "pr", key: string, gh: string): HTMLElement {
-  const go = (e: Event) => {
-    // A middle click or ctrl-click keeps its meaning: the href is the same route.
-    if (e instanceof MouseEvent && (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey)) return;
-    e.preventDefault();
-    enterThread(kind, t.number ?? 0);
-  };
-  const title = el("a", { href: `#hbs2/${kind}/${t.number ?? ""}`, class: "hbs2-title" }, t.redacted ? "(redacted)" : t.title ?? "");
-  title.addEventListener("click", go);
-  return el("li", { class: "hbs2-row" },
-    stateIcon(kind, t.status),
-    el("div", { class: "hbs2-main" },
-      el("div", { class: "hbs2-head" },
-        title,
-        ...t.labels.map((l) => el("span", { class: "hbs2-label" }, l)),
-        el("span", { class: "hbs2-badge", title: "this thread lives on hbs2, not on GitHub" }, "hbs2")),
-      el("div", { class: "hbs2-meta" },
-        `#${t.number ?? "?"} \u00b7 `, el("code", { title: t.author }, t.author.slice(0, 8)),
-        ` opened ${ago(t.created_at)}`,
-        t.updated_at > t.created_at ? `, updated ${ago(t.updated_at)}` : "")),
-    el("div", { class: "hbs2-side", title: `${t.comments} comments` },
-      t.comments > 0 ? commentIcon() : "", t.comments > 0 ? String(t.comments) : ""));
-}
-
-function stateIcon(kind: "issue" | "pr", status: string): HTMLElement {
-  const look = stateLook(kind, status);
-  return el("div", { class: `hbs2-icon ${look.cls}`, title: status }, iconEl(look.icon));
-}
-
-function commentIcon(): SVGSVGElement {
-  const s = iconEl("comment");
-  s.setAttribute("class", "hbs2-comment-icon");
-  return s;
-}
-
 // When GitHub's list is not there (an older page layout), a box above the page.
 async function addBox(kind: "issue" | "pr", key: string, gh: string): Promise<void> {
   if (mine("list")) return;
@@ -344,7 +310,7 @@ async function addBox(kind: "issue" | "pr", key: string, gh: string): Promise<vo
     const rows = filterRows(await rowsOf(key, kind), parseQuery(new URLSearchParams(location.search).get("q")));
     box.replaceChildren(
       el("div", { class: "Box-header" }, `hbs2: ${rows.length} ${kind === "pr" ? "pull requests" : "issues"}`),
-      el("ul", { class: "hbs2-rows" }, ...rows.map((t) => rowEl(t, kind, key, gh))));
+      el("ul", { class: "hbs2-rows" }, ...rows.map((t) => rowEl(t, kind, `#hbs2/${kind}/${t.number ?? ""}`, { open: () => enterThread(kind, t.number ?? 0), badge: true }))));
   } catch (e) {
     box.replaceChildren(el("div", { class: "Box-header" }, "hbs2: ", e instanceof Error ? e.message : String(e)));
   }

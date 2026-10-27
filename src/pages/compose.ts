@@ -18,6 +18,7 @@ import { el, markdownEl, shortKey } from "../lib/dom.ts";
 import { editor } from "../lib/editor.ts";
 import { isRepoKey } from "../lib/pointer.ts";
 import { iconEl } from "../lib/threadview.ts";
+import { siteBar } from "../lib/bar.ts";
 
 const q = new URLSearchParams(location.search);
 const main = document.querySelector("main")!;
@@ -30,6 +31,7 @@ const number = numberText && /^\d{1,9}$/.test(numberText) ? Number(numberText) :
 const tabText = q.get("tab");
 const tab = tabText && /^\d{1,12}$/.test(tabText) ? Number(tabText) : null;
 const gh = q.get("gh") ?? "";
+siteBar(isRepoKey(repo) ? repo : null);
 
 const TITLES: Record<Op, string> = {
   issue: "New issue on hbs2",
@@ -65,7 +67,8 @@ function fail(e: unknown): HTMLElement {
     return el("div", { class: "hbs2-flash is-error" },
       el("p", {}, "The hbs2-hub answering here is older than this extension. Writing needs 0.26.0.2 or later."),
       el("p", {}, "Update it and let it write the browser's launcher again:"),
-      el("pre", {}, `nix profile upgrade hbs2\nhbs2-hub native-host --install --chrome-id ${chrome.runtime.id}`),
+      el("pre", {}, __WEB__ ? "nix profile upgrade hbs2, then start hbs2-hub serve again"
+                            : `nix profile upgrade hbs2\nhbs2-hub native-host --install --chrome-id ${chrome.runtime.id}`),
       el("p", {}, "If you have updated already, the old one is still running:"),
       el("div", { class: "hbs2-actions" }, again),
       el("p", { class: "hbs2-muted" }, message));
@@ -319,7 +322,12 @@ async function main_(): Promise<void> {
     }
     await changed(tab, repo).catch(() => {});
     const close = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Close");
-    close.addEventListener("click", () => window.close());
+    // On the web the form is this tab: back to where it was opened from.
+    close.addEventListener("click", () => {
+      if (!__WEB__) window.close();
+      else if (history.length > 1) history.back();
+      else location.href = `repo.html?${new URLSearchParams({ key: repo })}`;
+    });
     status.replaceChildren(el("strong", {}, plan.publish || plan.tool === "pr_land" ? "Done, and published." : "Sent."),
       plan.publish || plan.tool === "pr_land" ? "" : " It shows up on the page once a maintainer accepts it.");
     main.append(el("div", { class: "hbs2-actions" }, close));

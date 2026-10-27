@@ -12,6 +12,7 @@ import { asIndex, asLetter, asQueue } from "../lib/docs.ts";
 import type { LetterDoc, QueueLetter } from "../lib/docs.ts";
 import { el, markdownEl, shortKey } from "../lib/dom.ts";
 import { isRepoKey } from "../lib/pointer.ts";
+import { siteBar } from "../lib/bar.ts";
 import { ago } from "../lib/query.ts";
 import { identiconEl } from "../lib/identicon.ts";
 
@@ -19,6 +20,7 @@ const q = new URLSearchParams(location.search);
 const main = document.querySelector("main")!;
 const repo = q.get("key") ?? "";
 const gh = q.get("gh") ?? "";
+siteBar(isRepoKey(repo) ? repo : null);
 const tabText = q.get("tab");
 const tab = tabText && /^\d{1,12}$/.test(tabText) ? Number(tabText) : null;
 
