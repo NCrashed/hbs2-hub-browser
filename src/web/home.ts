@@ -12,7 +12,7 @@ siteBar(null, ".");
 const main = document.querySelector("main")!;
 
 function repoLink(key: string): string {
-  return `./pages/repo.html?${new URLSearchParams({ key })}`;
+  return `./pages/code.html?${new URLSearchParams({ key })}`;
 }
 
 async function load(): Promise<void> {

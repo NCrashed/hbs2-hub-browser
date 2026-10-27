@@ -74,6 +74,7 @@ for (const [name, manifest] of Object.entries(targets)) {
     entryPoints: {
       home: "src/web/home.ts",
       "pages/repo": "src/pages/repo.ts",
+      "pages/code": "src/pages/code.ts",
       "pages/thread": "src/pages/thread.ts",
       "pages/compose": "src/pages/compose.ts",
       "pages/inbox": "src/pages/inbox.ts",
@@ -86,7 +87,7 @@ for (const [name, manifest] of Object.entries(targets)) {
     outdir: out,
     logLevel: "warning",
   });
-  for (const f of ["repo.html", "thread.html", "compose.html", "inbox.html", "maintainers.html", "style.css", "compose.css", "repo.css"]) cpSync(`src/pages/${f}`, `${out}/pages/${f}`);
+  for (const f of ["repo.html", "code.html", "thread.html", "compose.html", "inbox.html", "maintainers.html", "style.css", "compose.css", "repo.css", "code.css"]) cpSync(`src/pages/${f}`, `${out}/pages/${f}`);
   cpSync("src/web/index.html", `${out}/index.html`);
   cpSync("src/web/web.css", `${out}/web.css`);
   cpSync("src/content.css", `${out}/content.css`);

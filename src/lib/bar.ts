@@ -16,7 +16,7 @@ export function siteBar(repo: string | null, root = ".."): void {
     el("a", { href: `${root}/index.html`, class: "hbs2-home" },
       el("img", { src: `${root}/icons/icon-32.png`, alt: "", width: "24", height: "24" }), "hbs2-hub"),
     repo ? el("span", { class: "hbs2-crumb" }, "/",
-      el("a", { href: `${root === "." ? "./pages/" : ""}repo.html?${new URLSearchParams({ key: repo })}`, title: repo }, shortKey(repo))) : null,
+      el("a", { href: `${root === "." ? "./pages/" : ""}${__WEB__ ? "code" : "repo"}.html?${new URLSearchParams({ key: repo })}`, title: repo }, shortKey(repo))) : null,
     el("span", { class: "hbs2-spacer" }),
     mode);
   document.body.prepend(bar);

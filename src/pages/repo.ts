@@ -6,11 +6,11 @@ import { roleOf } from "../lib/compose.ts";
 import { asIndex, newerContract } from "../lib/docs.ts";
 import type { IndexRow } from "../lib/docs.ts";
 import { el, shortKey } from "../lib/dom.ts";
-import { identiconEl } from "../lib/identicon.ts";
 import { isRepoKey } from "../lib/pointer.ts";
 import { rowEl } from "../lib/rows.ts";
 import { iconEl } from "../lib/threadview.ts";
 import { siteBar } from "../lib/bar.ts";
+import { aboutRepo, repoHeader } from "../lib/repohead.ts";
 
 const q = new URLSearchParams(location.search);
 const main = document.querySelector("main")!;
@@ -29,18 +29,6 @@ async function keyOf(): Promise<string | null> {
 
 const here = (key: string, over: Record<string, string>) =>
   `repo.html?${new URLSearchParams({ key, ...(gh ? { gh } : {}), tab: tab === "pr" ? "pulls" : "issues", state, ...over })}`;
-
-function tabs(key: string, issues: IndexRow[], prs: IndexRow[], maintainer: boolean): HTMLElement {
-  const openCount = (rs: IndexRow[]) => String(rs.filter((t) => t.status === "open").length);
-  const link = (label: string, icon: string, href: string, selected: boolean, count?: string) =>
-    el("a", { href, class: selected ? "is-selected" : "" }, iconEl(icon), label,
-      count !== undefined ? el("span", { class: "hbs2-tab-count" }, count) : null);
-  return el("nav", { class: "hbs2-repo-tabs" },
-    link("Issues", "issue-open", here(key, { tab: "issues", state: "open" }), tab === "issue", openCount(issues)),
-    link("Pull requests", "pr-open", here(key, { tab: "pulls", state: "open" }), tab === "pr", openCount(prs)),
-    maintainer ? link("Inbox", "comment", `inbox.html?${new URLSearchParams({ key, gh })}`, false) : null,
-    maintainer ? link("Maintainers", "file", `maintainers.html?${new URLSearchParams({ key, gh })}`, false) : null);
-}
 
 function list(key: string, rows: IndexRow[], writable: boolean): HTMLElement {
   const open_ = rows.filter((t) => t.status === "open");
@@ -74,9 +62,11 @@ async function main_(): Promise<void> {
   }
   document.title = `${gh || shortKey(key).textContent || key} \u00b7 hbs2-hub`;
   const progress = el("p", { class: "hbs2-muted" }, "loading");
-  const head = el("div", { class: "hbs2-repo-head" },
-    el("h1", {}, identiconEl(key, 24), " ", gh ? el("strong", {}, gh) : el("strong", { title: key }, shortKey(key))),
-    el("code", { class: "hbs2-clone", title: "clone it" }, `git clone hbs23://${key}`));
+  // The web build shows the repository's own name, from its manifest; the
+  // extension has GitHub's.
+  const about = __WEB__ ? await aboutRepo(key) : { name: null, description: null };
+  const active = tab === "pr" ? "pulls" as const : "issues" as const;
+  let head = repoHeader(key, about, active, { gh, code: __WEB__ });
   main.replaceChildren(head, progress);
   try {
     const writable = await canWrite();
@@ -86,8 +76,10 @@ async function main_(): Promise<void> {
       writable ? call("status", { repo: key, local: true }).then(roleOf, () => null) : Promise.resolve(null),
     ]);
     const maintainer = writable && role !== null && role.maintainer;
-    main.replaceChildren(head, tabs(key, issues.threads, prs.threads, maintainer),
-      list(key, tab === "pr" ? prs.threads : issues.threads, writable));
+    const openOf = (rs: IndexRow[]) => rs.filter((t) => t.status === "open").length;
+    head = repoHeader(key, about, active, { gh, code: __WEB__, maintainer,
+                                            counts: { issues: openOf(issues.threads), pulls: openOf(prs.threads) } });
+    main.replaceChildren(head, list(key, tab === "pr" ? prs.threads : issues.threads, writable));
     if (newerContract(issues)) head.after(el("p", { class: "warn" }, "The host speaks a newer contract than this page; update it."));
   } catch (e) {
     progress.textContent = e instanceof Error ? e.message : String(e);
