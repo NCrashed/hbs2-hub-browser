@@ -96,6 +96,7 @@ In `store/screenshots/`, 1280 x 800. Captions:
 3. `3-files.png`: Files changed, from the diff the proposal carries.
 4. `4-comment.png`: A comment, written under the thread with Write and Preview.
 5. `5-review.png`: Before anything is signed: a dry run of exactly what will be written and published.
+6. `6-inbox.png`: A maintainer's inbox: a contributor's letter, opened whole, to accept or reject.
 
 ## Source code
 
