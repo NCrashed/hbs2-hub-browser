@@ -9,7 +9,8 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts",
-    "check": "node scripts/ascii.mjs && npm run typecheck && npm test && npm run build"
+    "check": "node scripts/ascii.mjs && npm run typecheck && npm test && npm run build",
+    "package": "npm run check && node scripts/package.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.0",

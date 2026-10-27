@@ -73,46 +73,55 @@ the extension's options.
 
 ## Install
 
-You need hbs2 0.26 or newer with a running `hbs2-peer`.
+You need hbs2-hub 0.26.0.2 or newer, a running `hbs2-peer`, and an
+identity (`hbs2-hub identity init`).
 
-1. Build the extension:
+1. Get the extension, from the
+   [releases](https://github.com/NCrashed/hbs2-hub-browser/releases):
+   - **Firefox:** open `hbs2-hub-<version>-firefox.xpi` (the one signed
+     by Mozilla) in Firefox, and confirm.
+   - **Chrome / Chromium:** unpack `hbs2-hub-<version>-chrome.zip`, then
+     `chrome://extensions`, enable Developer mode, "Load unpacked", and
+     choose the unpacked folder. Chrome installs nothing else from
+     outside its Web Store.
 
-   ```
-   npm install
-   npm run build
-   ```
-
-   This writes `dist/chrome` and `dist/firefox`.
-
-2. Load it:
-   - **Chrome / Chromium:** `chrome://extensions`, enable Developer
-     mode, "Load unpacked", choose `dist/chrome`.
-   - **Firefox:** `about:debugging#/runtime/this-firefox`, "Load
-     Temporary Add-on", choose `dist/firefox/manifest.json`.
-
-3. Let it reach hbs2-hub:
+2. Let it reach hbs2-hub:
 
    ```
-   hbs2-hub native-host --install --chrome-id llmffghhboheiadaadikapcdifeolepc
+   hbs2-hub native-host --install
    ```
 
    This writes a small launcher and the host manifest for each browser
-   you have. Run it again after upgrading hbs2.
+   you have; run Firefox once first, so its directory exists. The
+   manifest lets in this extension's ids only: `hbs2-hub@hbs2.app` in
+   Firefox and `llmffghhboheiadaadikapcdifeolepc` in Chrome. Run it again
+   after upgrading hbs2 from 0.26.0.1 or older.
 
-4. Optional, for faster reads and for writes later: tell it where your
-   clone of a repository is.
+3. For writing, and for faster reads, tell it where your clone of a
+   repository is:
 
    ```
    git config --global hbs2-hub.<repo-key>.clone /path/to/clone
    ```
 
-   Without it, the host keeps its own read-only clone under
-   `~/.cache/hbs2-hub/repos/`.
+   Without it, the host reads from a clone of its own under
+   `~/.cache/hbs2-hub/repos/`, and writes nothing.
+
+To try a build of your own instead: `npm install && npm run build`, then
+load `dist/chrome` unpacked, or in Firefox `about:debugging`, "Load
+Temporary Add-on", `dist/firefox/manifest.json`.
+
+## Privacy
+
+Nothing leaves your machine except to the `hbs2-hub` program on it, and
+GitHub pages and the `.hbs2/hub` file are read as any page you open is.
+See [PRIVACY.md](PRIVACY.md).
 
 ## Develop
 
 ```
 npm run check    # ASCII-only sources, types, tests, both builds
+npm run package  # check, then the release files in dist/release (needs zip)
 ```
 
 - `src/background.ts`: the one connection to the native host, and the
@@ -125,7 +134,13 @@ npm run check    # ASCII-only sources, types, tests, both builds
 
 The Chrome build carries the public half of a key (`keys/`) so an
 unpacked build has the same id everywhere; the native host's manifest
-names that id.
+names that id. The private half is not in this repository and must not
+be: it is what a Chrome Web Store upload can keep the id with.
+
+A tag `v<version>` (the version in package.json) makes a release
+(`.github/workflows/release.yml`). With `AMO_JWT_ISSUER` and
+`AMO_JWT_SECRET` in the repository secrets, the Firefox build is signed by
+Mozilla as an unlisted add-on and the `.xpi` is attached.
 
 ## License
 

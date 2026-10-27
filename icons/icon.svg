@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- hbs2-hub: the purple of the "hbs2" badge, and a pull request's branch. -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#8250df"/>
+  <g fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round">
+    <circle cx="42" cy="34" r="11"/>
+    <circle cx="42" cy="94" r="11"/>
+    <circle cx="88" cy="94" r="11"/>
+    <path d="M42 45v38"/>
+    <path d="M88 83V62a16 16 0 0 0-16-16H58"/>
+    <path d="M66 36l-10 10 10 10"/>
+  </g>
+</svg>
