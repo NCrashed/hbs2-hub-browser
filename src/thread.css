@@ -240,3 +240,9 @@
 .hbs2-small-in { font-size: 12px; padding: 3px 8px; }
 .hbs2-small-btn { font-size: 12px; padding: 3px 10px; line-height: 18px; }
 .hbs2-edit-actions { display: flex; justify-content: flex-end; gap: 6px; }
+
+/* The assignee picker, redaction, and recording a merge made elsewhere. */
+.hbs2-pick-face { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; line-height: 0; }
+.hbs2-pick-face:hover { box-shadow: 0 0 0 2px var(--fgColor-accent, #0969da); }
+.hbs2-c-head-right .hbs2-gear[hidden], .hbs2-merge-text [hidden] { display: none !important; }
+.hbs2-elsewhere { align-self: flex-start; padding: 0; font-size: 12px; }

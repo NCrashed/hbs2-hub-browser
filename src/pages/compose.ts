@@ -22,9 +22,9 @@ import { iconEl } from "../lib/threadview.ts";
 const q = new URLSearchParams(location.search);
 const main = document.querySelector("main")!;
 
-const op = (["issue", "comment", "pr", "land", "close", "reopen", "label"] as const).find((o) => o === q.get("op")) ?? null;
+const op = (["issue", "comment", "pr", "land", "close", "reopen", "label", "assign", "redact", "record"] as const).find((o) => o === q.get("op")) ?? null;
 const repo = q.get("key") ?? "";
-const kind: "issue" | "pr" = q.get("kind") === "pr" || op === "pr" || op === "land" ? "pr" : "issue";
+const kind: "issue" | "pr" = q.get("kind") === "pr" || op === "pr" || op === "land" || op === "record" ? "pr" : "issue";
 const numberText = q.get("number");
 const number = numberText && /^\d{1,9}$/.test(numberText) ? Number(numberText) : null;
 const tabText = q.get("tab");
@@ -39,10 +39,13 @@ const TITLES: Record<Op, string> = {
   close: "Close on hbs2",
   reopen: "Reopen on hbs2",
   label: "Labels on hbs2",
+  assign: "Assignee on hbs2",
+  redact: "Redact on hbs2",
+  record: "Record a merge on hbs2",
 };
 
 // The ops that act on a thread, and those whose page already said everything.
-const ON_THREAD: readonly Op[] = ["comment", "land", "close", "reopen", "label"];
+const ON_THREAD: readonly Op[] = ["comment", "land", "close", "reopen", "label", "assign", "redact", "record"];
 
 function fail(e: unknown): HTMLElement {
   const err = e instanceof HubError ? e.error : null;
@@ -107,27 +110,61 @@ function form(role: Role, t: ThreadDoc | null, again: Form): Promise<Form> {
     let read: () => Form = () => ({});
 
     if (op === "issue" || op === "pr") {
-      const title = el("input", { class: "hbs2-input hbs2-title-in", placeholder: "Title", value: again.title ?? "" });
-      const ed = editor({ initial: again.body ?? "", placeholder: op === "pr" ? "What does this change, and why?" : "Describe the problem, and how to reproduce it." });
+      const title = el("input", { class: "hbs2-input hbs2-title-in", placeholder: "Title", value: again.title ?? q.get("title") ?? "" });
+      const ed = editor({ initial: again.body ?? q.get("body") ?? "", placeholder: op === "pr" ? "What does this change, and why?" : "Describe the problem, and how to reproduce it." });
       parts.push(field("Add a title", title), field("Add a description", ed.node));
       if (op === "issue") {
         const labels = el("input", { class: "hbs2-input", placeholder: "bug, docs", value: again.labels ?? "" });
         parts.push(field("Labels", labels, role.maintainer ? "Comma separated. Applied." : "Comma separated. Asked for; a maintainer applies labels."));
         read = () => ({ title: title.value, body: ed.value(), labels: labels.value });
       } else {
-        const from = select(role.branches, again.from ?? role.branch ?? "");
-        const onto = select(role.branches, again.onto ?? defaultOnto(role));
-        parts.push(el("div", { class: "hbs2-branches" },
-          field("Merge into", onto), field("From", from)));
-        parts.push(el("p", { class: "hbs2-hint hbs2-muted" },
-          "The branches of your working clone. Only the commits on From that are not on the target travel."));
-        read = () => ({ title: title.value, body: ed.value(), from: from.value, onto: onto.value });
+        // FROM A BRANCH HERE, OR FROM ANOTHER REPOSITORY: a GitHub fork's
+        // branch, or GitHub's own pull/N/head for a pull request opened there.
+        const url0 = again.fromUrl ?? q.get("from_url") ?? "";
+        const local = el("input", { type: "radio", name: "src" });
+        const remote = el("input", { type: "radio", name: "src" });
+        (url0 ? remote : local).checked = true;
+        const from = select(role.branches, again.fromUrl ? (role.branch ?? "") : (again.from ?? role.branch ?? ""));
+        const onto = select(role.branches, again.onto ?? q.get("onto") ?? defaultOnto(role));
+        const url = el("input", { class: "hbs2-input", placeholder: "https://github.com/owner/repo", value: url0 });
+        const ref = el("input", { class: "hbs2-input", placeholder: "branch, or pull/<n>/head",
+                                  value: url0 ? (again.from ?? q.get("from") ?? "") : "" });
+        const here = el("div", { class: "hbs2-branches" }, field("From", from));
+        const there = el("div", { class: "hbs2-branches" }, field("Repository", url), field("Branch or ref", ref));
+        const show = () => { here.hidden = !local.checked; there.hidden = !remote.checked; };
+        local.addEventListener("change", show);
+        remote.addEventListener("change", show);
+        show();
+        parts.push(field("Merge into", onto),
+          el("div", { class: "hbs2-source" },
+            el("label", { class: "hbs2-check" }, local, " A branch of my working clone"),
+            el("label", { class: "hbs2-check" }, remote, " Another repository: a GitHub fork, or a pull request opened on GitHub")),
+          here, there,
+          el("p", { class: "hbs2-hint hbs2-muted" },
+            "Only the commits that are not on the target travel. From another repository they are fetched into your working clone first."));
+        read = () => remote.checked
+          ? { title: title.value, body: ed.value(), fromUrl: url.value, from: ref.value, onto: onto.value }
+          : { title: title.value, body: ed.value(), from: from.value, onto: onto.value };
       }
     } else if (op === "comment" || op === "close" || op === "reopen") {
       const ed = editor({ initial: again.body ?? q.get("body") ?? "",
                           placeholder: op === "comment" ? "Leave a comment" : "A note, published as a comment (optional)" });
       parts.push(field(op === "comment" ? "Add a comment" : "Note", ed.node));
       read = () => ({ body: ed.value() });
+    } else if (op === "redact") {
+      parts.push(el("p", {}, "Redact the event ", el("code", {}, again.event ?? ""), ". Readers withhold its text from then on."));
+      read = () => ({ event: again.event ?? "" });
+    } else if (op === "assign") {
+      const input = el("input", { class: "hbs2-input", placeholder: "A key (base58); empty unassigns", value: again.assignee ?? q.get("assignee") ?? "" });
+      parts.push(field("Assignee", input, "One thread has one assignee; this replaces the one before."));
+      read = () => ({ assignee: input.value });
+    } else if (op === "record") {
+      const commit = el("input", { class: "hbs2-input", placeholder: "the merge commit's sha", value: again.commit ?? q.get("commit") ?? "" });
+      const into = el("input", { class: "hbs2-input", value: again.into ?? q.get("into") ?? (t?.pr ? (t.pr.onto.startsWith("refs/") ? t.pr.onto : `refs/heads/${t.pr.onto}`) : "") });
+      const fetch = el("input", { class: "hbs2-input", placeholder: "origin", value: again.fetch ?? q.get("fetch") ?? "origin" });
+      parts.push(field("Merge commit", commit, "A merge you made with git or on GitHub. Canon checks that it contains the proposal."),
+        field("On branch", into), field("Fetch first from", fetch, "The remote the commit is on, if this clone has not fetched it. Empty fetches nothing."));
+      read = () => ({ commit: commit.value, into: into.value, fetch: fetch.value });
     } else if (op === "label") {
       const input = el("input", { class: "hbs2-input", placeholder: "bug, docs", value: again.labels ?? q.get("labels") ?? "" });
       parts.push(field("Labels", input, "Comma separated. They replace the thread's labels; empty removes them all."));
@@ -233,8 +270,17 @@ async function main_(): Promise<void> {
   // read back and signed, so asking for it a second time was only a chore.
   const draft = q.get("body") ?? "";
   let f: Form = op === "label" ? { labels: q.get("labels") ?? "" }
+              : op === "assign" ? { assignee: q.get("assignee") ?? "" }
+              : op === "redact" ? { event: q.get("event") ?? "" }
+              : op === "record" ? { commit: q.get("commit") ?? "", into: q.get("into") ?? "", fetch: q.get("fetch") ?? "origin" }
               : (op === "comment" || op === "close" || op === "reopen") && draft.trim() ? { body: draft } : {};
-  let skip = (op === "comment" && draft.trim() !== "") || op === "land" || op === "close" || op === "reopen" || op === "label";
+  // A merge is recorded on the branch the pull request was proposed onto,
+  // unless the page said otherwise.
+  if (op === "record" && !f.into && thread?.pr) {
+    f.into = thread.pr.onto.startsWith("refs/") ? thread.pr.onto : `refs/heads/${thread.pr.onto}`;
+  }
+  let skip = (op === "comment" && draft.trim() !== "") || op === "land" || op === "close" || op === "reopen"
+          || op === "label" || op === "assign" || op === "redact" || (op === "record" && !!q.get("commit"));
   for (;;) {
     if (!skip) f = await form(role, thread, f);
     skip = false;

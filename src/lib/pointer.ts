@@ -36,8 +36,15 @@ const NOT_OWNERS = new Set([
 export interface GithubRepo {
   owner: string;
   repo: string;
-  /** What the page is: the repository, its issue list, its pull request list, or anything else in it. */
-  view: "code" | "issues" | "pulls" | "other";
+  /**
+   * What the page is: the repository, its issue list, its pull request list,
+   * one of GitHub's own pull requests, one commit, or anything else in it.
+   */
+  view: "code" | "issues" | "pulls" | "pull" | "commit" | "other";
+  /** For "pull": its number. */
+  pull?: number;
+  /** For "commit": its sha, as the address gives it. */
+  commit?: string;
 }
 
 /** The repository a github.com path is inside, or null. */
@@ -50,6 +57,11 @@ export function repoFromPath(pathname: string): GithubRepo | null {
   if (section === undefined) view = "code";
   else if (section === "issues" && rest === undefined) view = "issues";
   else if (section === "pulls" && rest === undefined) view = "pulls";
+  else if (section === "pull" && rest !== undefined && /^\d{1,9}$/.test(rest)) {
+    return { owner, repo: repo.replace(/\.git$/, ""), view: "pull", pull: Number(rest) };
+  } else if (section === "commit" && rest !== undefined && /^[0-9a-f]{7,64}$/.test(rest)) {
+    return { owner, repo: repo.replace(/\.git$/, ""), view: "commit", commit: rest };
+  }
   return { owner, repo: repo.replace(/\.git$/, ""), view };
 }
 

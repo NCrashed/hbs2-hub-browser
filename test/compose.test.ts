@@ -57,3 +57,17 @@ test("closing, reopening and labels are canon writes, published", () => {
   assert.deepEqual(planOf("label", m, { labels: " " }, t).args, { repo, number: 2, kind: "pr", clear: true });
   assert.equal(planOf("label", m, {}, t).publish, true);
 });
+
+test("assign, redact, record a merge, and a pull request from another repository", () => {
+  const m = roleOf(status);
+  const t = { repo, kind: "pr" as const, number: 2 };
+  assert.deepEqual(planOf("assign", m, { assignee: "" }, t).args, { repo, number: 2, kind: "pr", clear: true });
+  assert.equal(planOf("redact", m, { event: "E" }, t).tool, "redact");
+  assert.deepEqual(planOf("record", m, { commit: "abc1234", fetch: "origin" }, t).args,
+                   { repo, number: 2, commit: "abc1234", into: "refs/heads/master", fetch: "origin" });
+  assert.equal(missing("record", { commit: "HEAD" }), "The merge commit is a sha.");
+  assert.deepEqual(planOf("pr", m, { title: "t", fromUrl: "https://github.com/a/b", from: "pull/3/head" }, { ...t, number: null }).args,
+                   { repo, title: "t", onto: "master", from: "pull/3/head", from_url: "https://github.com/a/b" });
+  assert.equal(missing("pr", { title: "t", fromUrl: "file:///x", from: "y" }), "The repository is named by its https address.");
+  assert.equal(missing("pr", { title: "t", fromUrl: "https://github.com/a/b" }), "Name the branch or ref to fetch from it.");
+});

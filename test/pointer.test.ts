@@ -36,3 +36,11 @@ test("a GitHub path is inside a repository, or not", () => {
   assert.equal(repoFromPath("/"), null);
   assert.equal(repoFromPath("/NCrashed"), null);
 });
+
+test("a GitHub pull request and a commit are pages of their own", () => {
+  assert.deepEqual(repoFromPath("/a/b/pull/12"), { owner: "a", repo: "b", view: "pull", pull: 12 });
+  assert.deepEqual(repoFromPath("/a/b/pull/12/files"), { owner: "a", repo: "b", view: "pull", pull: 12 });
+  assert.deepEqual(repoFromPath("/a/b/commit/3795fb0aa"), { owner: "a", repo: "b", view: "commit", commit: "3795fb0aa" });
+  assert.equal(repoFromPath("/a/b/pull/x")?.view, "other");
+  assert.equal(repoFromPath("/a/b/commit/HEAD")?.view, "other");
+});

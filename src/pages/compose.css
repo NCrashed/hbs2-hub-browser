@@ -16,7 +16,10 @@
 .hbs2-input:focus { outline: 2px solid var(--fgColor-accent, #0969da); outline-offset: -1px; }
 .hbs2-title-in { font-size: 16px; padding: 8px 12px; }
 select.hbs2-input { width: auto; min-width: 180px; }
+.hbs2-compose [hidden] { display: none !important; }
 .hbs2-branches { display: flex; gap: 16px; flex-wrap: wrap; }
+.hbs2-source { display: flex; flex-direction: column; gap: 4px; margin: 0 0 12px; }
+.hbs2-source .hbs2-check { margin: 0; }
 .hbs2-check { display: flex; align-items: center; gap: 6px; margin: 0 0 16px; font-size: 14px; }
 .hbs2-landsum { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
 .hbs2-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
@@ -35,7 +38,7 @@ select.hbs2-input { width: auto; min-width: 180px; }
 .hbs2-card + .hbs2-card { border-top: 1px solid var(--borderColor-default, #d1d9e0); }
 .hbs2-card.is-done { opacity: 0.7; }
 .hbs2-card-head {
-  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 16px; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; padding: 10px 16px; cursor: pointer; text-align: left;
   font: inherit; color: inherit; background: none; border: 0;
 }
 .hbs2-card-head:hover { background: var(--bgColor-muted, #f6f8fa); }
@@ -50,3 +53,12 @@ select.hbs2-input { width: auto; min-width: 180px; }
 .hbs2-answer-row .hbs2-check { margin: 0 auto 0 0; }
 .hbs2-flash.is-ok { color: var(--fgColor-success, #1a7f37); background: var(--bgColor-success-muted, #dafbe1); border-color: currentColor; }
 .hbs2-blank { text-align: center; padding: 48px 16px; border: 1px dashed var(--borderColor-default, #d1d9e0); border-radius: 6px; }
+
+/* The maintainers page. */
+.hbs2-card-head.hbs2-static { cursor: default; }
+.hbs2-card-head.hbs2-static:hover { background: none; }
+.hbs2-maint .hbs2-card-panel:has(> .hbs2-confirm:empty) { display: none; }
+.hbs2-fullkey { font-size: 12px; word-break: break-all; background: none; padding: 0; }
+.hbs2-adder { margin-top: 24px; }
+.hbs2-adder .hbs2-input { flex: 1; }
+a.hbs2-btn { text-decoration: none; display: inline-block; }

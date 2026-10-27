@@ -9,10 +9,10 @@
 // merging one is a maintainer's (pr_land), and publishes by itself.
 import type { Json } from "./protocol.ts";
 
-export type Op = "issue" | "comment" | "pr" | "land" | "close" | "reopen" | "label";
+export type Op = "issue" | "comment" | "pr" | "land" | "close" | "reopen" | "label" | "assign" | "redact" | "record";
 
 /** What only a maintainer may do: the canon verbs with no letter behind them. */
-export const MAINTAINER_ONLY: readonly Op[] = ["land", "close", "reopen", "label"];
+export const MAINTAINER_ONLY: readonly Op[] = ["land", "close", "reopen", "label", "assign", "redact", "record"];
 
 export interface Role {
   /** This clone signs canon as a key that may bless it. */
@@ -76,6 +76,16 @@ export interface Form {
   from?: string;
   message?: string;
   noMirror?: boolean;
+  /** A pull request from another repository: its https URL; `from` is its ref. */
+  fromUrl?: string;
+  /** A key to assign; empty unassigns. */
+  assignee?: string;
+  /** The event a redaction withholds. */
+  event?: string;
+  /** A merge made elsewhere: its commit, the branch it is on, a remote to fetch first. */
+  commit?: string;
+  into?: string;
+  fetch?: string;
 }
 
 export interface Target {
@@ -120,9 +130,31 @@ export function planOf(op: Op, role: Role, f: Form, t: Target): Plan {
     case "pr":
       return { tool: "pr_new", publish: false,
                args: { repo: t.repo, title: f.title ?? "", ...body,
-                       onto: f.onto || defaultOnto(role), ...(f.from ? { from: f.from } : {} as Args) },
-               what: "Bundles the commits on the branch that are not on the target and sends them "
-                     + "as a letter, signed by your identity. It appears once a maintainer accepts it." };
+                       onto: f.onto || defaultOnto(role), ...(f.from ? { from: f.from } : {} as Args),
+                       ...(f.fromUrl?.trim() ? { from_url: f.fromUrl.trim() } : {} as Args) },
+               what: (f.fromUrl?.trim()
+                       ? `Fetches ${f.from ?? "the ref"} from ${f.fromUrl.trim()} into your working clone, bundles `
+                         + "the commits that are not on the target"
+                       : "Bundles the commits on the branch that are not on the target")
+                     + " and sends them as a letter, signed by your identity. It appears once a maintainer accepts it." };
+    case "assign": {
+      const who = f.assignee?.trim() ?? "";
+      return { tool: "issue_assign", publish: true,
+               args: { repo: t.repo, ...thread, ...(who ? { assignee: who } : { clear: true }) },
+               what: who ? "Assigns the thread to this key, in canon, and publishes canon."
+                         : "Unassigns the thread, in canon, and publishes canon." };
+    }
+    case "redact":
+      return { tool: "redact", publish: true, args: { repo: t.repo, event: f.event ?? "" },
+               what: "Withholds this event's text from every reader from now on, in canon, and publishes "
+                     + "canon. The event stays in canon; what a clone already has is not taken back." };
+    case "record":
+      return { tool: "pr_merge", publish: true,
+               args: { repo: t.repo, number: t.number ?? 0, commit: f.commit?.trim() ?? "",
+                       into: f.into?.trim() || `refs/heads/${defaultOnto(role)}`,
+                       ...(f.fetch?.trim() ? { fetch: f.fetch.trim() } : {} as Args) },
+               what: "Records that this commit merged the pull request: canon checks that it contains the "
+                     + "proposed tip, the status becomes merged, and canon is published." };
     case "close":
     case "reopen": {
       const note: Args = f.body?.trim() ? { note: f.body } : {};
@@ -154,7 +186,11 @@ export function planOf(op: Op, role: Role, f: Form, t: Target): Plan {
 export function missing(op: Op, f: Form): string | null {
   if ((op === "issue" || op === "pr") && !f.title?.trim()) return "A title is needed.";
   if (op === "comment" && !f.body?.trim()) return "The comment is empty.";
-  if (op === "pr" && f.from && f.onto && f.from === f.onto) return "A branch cannot be proposed onto itself.";
+  if (op === "pr" && !f.fromUrl?.trim() && f.from && f.onto && f.from === f.onto) return "A branch cannot be proposed onto itself.";
+  if (op === "pr" && f.fromUrl?.trim() && !/^https:\/\/\S+$/.test(f.fromUrl.trim())) return "The repository is named by its https address.";
+  if (op === "pr" && f.fromUrl?.trim() && !f.from?.trim()) return "Name the branch or ref to fetch from it.";
+  if (op === "record" && !/^[0-9a-f]{4,64}$/.test(f.commit?.trim() ?? "")) return "The merge commit is a sha.";
+  if (op === "redact" && !f.event) return "Nothing to redact.";
   return null;
 }
 

@@ -62,6 +62,8 @@ async function run(): Promise<void> {
 
   if (!mine("tab")) addTab(key, gh);
   if (p.changed && !mine("warn")) warnChanged(p.changed);
+  if (r.view === "pull" && r.pull !== undefined && !mine("propose")) addPropose(r.owner, r.repo, r.pull, key, gh);
+  if (r.view === "commit" && r.commit && !mine("record")) await addRecord(r.commit, key, gh);
   const route = routeOf(location.hash);
   if (listPage && route) await showThread(route, key, gh);
   else {
@@ -167,6 +169,46 @@ function addTab(key: string, gh: string): void {
     void open("repo", { key, gh });
   });
   nav.append(nav.tagName === "UL" ? el("li", { class: "d-inline-flex" }, tab) : tab);
+}
+
+// Under the repository header, where GitHub's own banners go.
+function banner(what: string, ...content: (Node | string | null)[]): HTMLElement {
+  const box = el("div", { [MARK]: what, class: "hbs2-banner" }, el("span", { class: "hbs2-badge" }, "hbs2"), ...content);
+  const header = document.getElementById("repository-container-header");
+  if (header) header.after(box);
+  else (document.querySelector("main") ?? document.body).prepend(box);
+  return box;
+}
+
+// ONE OF GITHUB'S OWN PULL REQUESTS, proposed on hbs2: its commits are fetched
+// from GitHub's pull/N/head, which every pull request has, a fork's included.
+// The title and the target are read off the page as a starting point; the
+// form shows both, and the person can change them before the review.
+function addPropose(owner: string, repo: string, n: number, key: string, gh: string): void {
+  const titleEl = document.querySelector('[data-testid="issue-title"], .js-issue-title, bdi.markdown-title');
+  const title = titleEl?.textContent?.trim() || document.title.split(" by ")[0]?.trim() || "";
+  const base = document.querySelector(".base-ref, [class*='BaseRef'] a, [class*='base-ref']")?.textContent?.trim() ?? "";
+  const go = el("button", { type: "button", class: "hbs2-btn hbs2-new" }, "Propose on hbs2");
+  go.addEventListener("click", () => compose({
+    op: "pr", key, gh, title, from_url: `https://github.com/${owner}/${repo}`, from: `pull/${n}/head`,
+    ...(/^[A-Za-z0-9._\/-]{1,200}$/.test(base) ? { onto: base.replace(/^.*:/, "") } : {}),
+  }));
+  banner("propose", el("span", { class: "hbs2-muted" },
+    `This repository takes pull requests on hbs2 too. Propose #${n}'s commits there as a letter.`), go);
+}
+
+// A COMMIT, recorded as the merge of an open hbs2 pull request: for a
+// maintainer who merged it here on GitHub. Canon checks that the commit holds
+// the proposal; a commit that does not is refused at the review.
+async function addRecord(sha: string, key: string, gh: string): Promise<void> {
+  if (!(await maintainer(key))) return;
+  const open_ = (await rowsOf(key, "pr").catch(() => [] as IndexRow[])).filter((t) => t.status === "open" && t.number !== null);
+  if (!open_.length || mine("record")) return;
+  const pick = el("select", { class: "hbs2-input hbs2-small-in" },
+    ...open_.map((t) => el("option", { value: String(t.number) }, `#${t.number} ${t.title ?? ""}`)));
+  const go = el("button", { type: "button", class: "hbs2-btn hbs2-new" }, "Record merge");
+  go.addEventListener("click", () => compose({ op: "record", key, gh, kind: "pr", number: pick.value, commit: sha, fetch: "origin" }));
+  banner("record", el("span", { class: "hbs2-muted" }, `Is ${sha.slice(0, 7)} the merge of an hbs2 pull request?`), pick, go);
 }
 
 function warnChanged(named: string): void {

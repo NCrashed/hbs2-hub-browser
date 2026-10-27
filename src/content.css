@@ -57,3 +57,12 @@
 .hbs2-bar .hbs2-new { font-size: 12px; padding: 3px 12px; }
 .hbs2-bar .hbs2-spacer { flex: 1; }
 .hbs2-bar [hidden] { display: none !important; }
+
+/* A line under the repository header: propose a GitHub pull request on hbs2, or record a merge. */
+.hbs2-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; max-width: 1280px; margin: 12px auto; padding: 8px 16px;
+  box-sizing: border-box; font-size: 13px; border: 1px solid var(--borderColor-done-emphasis, #8250df); border-radius: 6px;
+  background: var(--bgColor-default, #fff); color: var(--fgColor-default, #1f2328);
+}
+.hbs2-banner .hbs2-new { margin-left: auto; font-size: 12px; padding: 3px 12px; }
+.hbs2-banner select { width: auto; max-width: 360px; }

@@ -5,8 +5,9 @@
 // dry run is shown under the letter, with the button that signs. A letter is
 // a stranger's bytes: its title and body are drawn as text and through the
 // extension's own Markdown reader, as everywhere else.
-import { HubError, call, changed, restartHost } from "../lib/client.ts";
-import { roleOf, textOf } from "../lib/compose.ts";
+import { call, changed } from "../lib/client.ts";
+import { CANON_WARN, refusal, rehearse } from "../lib/rehearse.ts";
+import { roleOf } from "../lib/compose.ts";
 import { asIndex, asLetter, asQueue } from "../lib/docs.ts";
 import type { LetterDoc, QueueLetter } from "../lib/docs.ts";
 import { el, markdownEl, shortKey } from "../lib/dom.ts";
@@ -31,27 +32,16 @@ const OPS: Record<string, { label: string; verb: "accept" | "honour" }> = {
   set: { label: "Asks for a label", verb: "honour" },
 };
 
-function message(e: unknown): HTMLElement {
-  const m = e instanceof Error ? e.message : String(e);
-  if (/unknown argument\(s\)/.test(m) || (e instanceof HubError && e.error.meaning === "unknown-tool")) {
-    const again = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Restart the host and try again");
-    again.addEventListener("click", () => { void restartHost().then(() => location.reload()); });
-    return el("div", { class: "hbs2-flash is-error" },
-      el("p", {}, "The hbs2-hub answering here is older than this extension; update it to 0.26.0.1 or later."),
-      el("div", { class: "hbs2-actions" }, again), el("p", { class: "hbs2-muted" }, m));
-  }
-  return el("div", { class: "hbs2-flash is-error" }, el("pre", { class: "hbs2-out" }, m));
-}
-
 function header(n: number | null): HTMLElement {
   const refresh = el("button", { type: "button", class: "hbs2-btn" }, "Refresh");
   refresh.addEventListener("click", () => void load());
+  const people = el("a", { href: `maintainers.html?${new URLSearchParams({ key: repo, gh, ...(tab !== null ? { tab: String(tab) } : {}) })}`, class: "hbs2-btn" }, "Maintainers");
   return el("div", { class: "hbs2-c-header hbs2-inbox-head" },
     el("div", {},
       el("h1", {}, "Inbox"),
       el("p", { class: "hbs2-muted" }, gh ? `${gh} \u00b7 ` : "", "hbs23://", el("code", { title: repo }, shortKey(repo)),
         n !== null ? ` \u00b7 ${n} ${n === 1 ? "letter" : "letters"} waiting` : "")),
-    refresh);
+    el("div", { class: "hbs2-edit-actions" }, people, refresh));
 }
 
 // The verbs a letter can be answered with, each rehearsed before it signs.
@@ -64,47 +54,15 @@ function answer(l: QueueLetter, card: HTMLElement, panel: HTMLElement): HTMLElem
 
   const run = async (tool: string, args: { [k: string]: string | boolean }, publish: boolean, doneText: string) => {
     yes.disabled = no.disabled = true;
-    const status = el("p", { class: "hbs2-muted" }, "Rehearsing");
-    result.replaceChildren(status);
-    let rehearsal;
-    try {
-      rehearsal = textOf(await call(tool, { ...args, dry_run: true }, (p) => { status.textContent = p; }));
-    } catch (e) {
-      result.replaceChildren(message(e));
-      yes.disabled = no.disabled = false;
-      return;
-    }
-    const go = el("button", { type: "button", class: "hbs2-btn is-primary" },
-      tool === "inbox_reject" ? "Reject it" : publish ? "Sign and publish" : "Sign");
-    const back = el("button", { type: "button", class: "hbs2-btn" }, "Not now");
-    result.replaceChildren(
-      el("p", { class: "hbs2-muted" }, "A dry run of exactly this, with nothing signed or sent:"),
-      el("pre", { class: "hbs2-out" }, [rehearsal.text, rehearsal.notes].filter(Boolean).join("\n") || "(no output)"),
-      el("p", { class: "hbs2-warn-line" }, tool === "inbox_reject"
-        ? "The letter is dropped from the mailbox for every peer; it cannot be brought back."
-        : "Canon is append-only: once published this is public and permanent in every clone."),
-      el("div", { class: "hbs2-actions" }, back, go));
-    back.addEventListener("click", () => { result.replaceChildren(); yes.disabled = no.disabled = false; });
-    go.addEventListener("click", async () => {
-      go.disabled = back.disabled = true;
-      const st = el("p", { class: "hbs2-muted" }, "Signing");
-      result.append(st);
-      try {
-        const out = textOf(await call(tool, args, (p) => { st.textContent = p; }));
-        if (publish) {
-          st.textContent = "Publishing canon";
-          await call("publish", { repo }, (p) => { st.textContent = p; });
-        }
-        await changed(tab, repo).catch(() => {});
-        card.classList.add("is-done");
-        panel.replaceChildren(el("div", { class: "hbs2-flash is-ok" }, el("strong", {}, doneText),
-          el("pre", { class: "hbs2-out" }, out.text)));
-      } catch (e) {
-        st.replaceChildren(el("strong", {}, "It did not go through."));
-        result.append(message(e));
-        go.disabled = back.disabled = false;
-      }
+    const out = await rehearse(result, {
+      tool, args, publish: publish ? repo : null,
+      sign: tool === "inbox_reject" ? "Reject it" : publish ? "Sign and publish" : "Sign",
+      warn: tool === "inbox_reject" ? "The letter is dropped from the mailbox for every peer; it cannot be brought back." : CANON_WARN,
     });
+    if (out === null) { yes.disabled = no.disabled = false; return; }
+    await changed(tab, repo).catch(() => {});
+    card.classList.add("is-done");
+    panel.replaceChildren(el("div", { class: "hbs2-flash is-ok" }, el("strong", {}, doneText), el("pre", { class: "hbs2-out" }, out)));
   };
 
   yes.addEventListener("click", () => void run(op.verb === "honour" ? "inbox_honour" : "inbox_accept",
@@ -183,7 +141,7 @@ function card(l: QueueLetter, threads: Threads): HTMLElement {
         : el("div", {}), answer(l, box, panel));
     } catch (e) {
       loaded = false;
-      panel.replaceChildren(message(e));
+      panel.replaceChildren(refusal(e));
     }
   });
   return box;
@@ -212,7 +170,7 @@ async function load(): Promise<void> {
       doc.denied > 0 ? el("p", { class: "hbs2-muted" }, `${doc.denied} from banned authors, not shown.`) : null]
       .filter((x): x is HTMLElement => x !== null));
   } catch (e) {
-    main.append(message(e));
+    main.append(refusal(e));
   }
 }
 

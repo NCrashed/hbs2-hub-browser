@@ -22,7 +22,10 @@ export function threadActions(o: {
     close: (note) => o.compose({ op: "close", ...base, body: text(note) }),
     reopen: (note) => o.compose({ op: "reopen", ...base, body: text(note) }),
     labels: (ls) => o.compose({ op: "label", ...base, labels: ls.join(", ") }),
-    ...(o.kind === "pr" ? { land: () => o.compose({ op: "land", ...base }) } : {}),
+    assign: (key) => o.compose({ op: "assign", ...base, assignee: key }),
+    redact: (event) => o.compose({ op: "redact", ...base, event }),
+    ...(o.kind === "pr" ? { land: () => o.compose({ op: "land", ...base }),
+                            record: () => o.compose({ op: "record", ...base }) } : {}),
     maintains: o.maintains,
     knownLabels: o.knownLabels ?? [],
   };

@@ -29,6 +29,11 @@ export interface ThreadViewOptions {
     close?: (note: string) => void;
     reopen?: (note: string) => void;
     labels?: (labels: string[]) => void;
+    /** A key, or "" to unassign. */
+    assign?: (key: string) => void;
+    redact?: (event: string) => void;
+    /** Record a merge made with git or on GitHub. */
+    record?: () => void;
     /** Labels used elsewhere in the repository, offered when editing. */
     knownLabels?: string[];
     maintains?: Promise<boolean>;
@@ -99,7 +104,18 @@ function body(text: string | null, redacted: boolean, empty = "No description pr
 function commentBox(opts: {
   author: string; canonBy: string; ts: number; text: string | null; redacted: boolean;
   isThreadAuthor: boolean; verb: string;
+  /** For a maintainer: withhold this one's text. */
+  redact?: { go: () => void; can: Promise<boolean> | undefined };
 }): HTMLElement {
+  let redact: HTMLElement | null = null;
+  if (opts.redact && !opts.redacted) {
+    const r = opts.redact;
+    redact = el("button", { type: "button", class: "hbs2-gear", title: "Withhold this text from every reader" }, "Redact");
+    redact.hidden = true;
+    redact.addEventListener("click", () => r.go());
+    const b = redact;
+    void (r.can ?? Promise.resolve(false)).then((yes) => { b.hidden = !yes; }, () => {});
+  }
   return el("div", { class: "hbs2-c" },
     el("div", { class: "hbs2-c-face" }, identiconEl(opts.author, 40)),
     el("div", { class: "hbs2-c-box" },
@@ -110,7 +126,8 @@ function commentBox(opts: {
           opts.canonBy === opts.author ? el("span", { class: "hbs2-c-badge" }, "Maintainer") : null,
           opts.canonBy !== opts.author
             ? el("span", { class: "hbs2-c-blessed", title: opts.canonBy }, `accepted by ${short(opts.canonBy)}`)
-            : null)),
+            : null,
+          redact)),
       body(opts.text, opts.redacted)));
 }
 
@@ -196,17 +213,20 @@ function timeline(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
   const foot = t.kind === "pr" ? "pr" : "issue";
   const a = o.actions;
   return el("div", { class: "hbs2-t-timeline" },
+    // The opening's event id is the thread id (PEP-19).
     commentBox({ author: t.author, canonBy: t.canon_by, ts: t.created_at, text: t.body, redacted: t.redacted,
-                 isThreadAuthor: true, verb: "opened" }),
+                 isThreadAuthor: true, verb: "opened",
+                 redact: a?.redact ? { go: () => a.redact?.(t.thread_id), can: a.maintains } : undefined }),
     ...t.comments.map((c: Comment) => commentBox({
       author: c.author, canonBy: c.canon_by, ts: c.ts, text: c.body, redacted: c.redacted,
-      isThreadAuthor: c.author === t.author, verb: "commented" })),
+      isThreadAuthor: c.author === t.author, verb: "commented",
+      redact: a?.redact ? { go: () => a.redact?.(c.event_id), can: a.maintains } : undefined })),
     pr && pr.merge_commit
       ? eventRow("pr-merged", "is-merged", "Merged commit ",
           el("code", { title: pr.merge_commit }, pr.merge_commit.slice(0, 7)), " into ", branch(pr.merged_into ?? pr.onto))
       : null,
     pr && t.status === "closed" ? eventRow("pr-closed", "is-closed-pr", "Closed without merging") : null,
-    pr && t.status === "open" && a?.land ? mergeBox(pr.onto, a.land, a.maintains) : null,
+    pr && t.status === "open" && a?.land ? mergeBox(pr.onto, a.land, a.maintains, a.record) : null,
     a?.comment
       ? composer(t, a.comment, a)
       : el("div", { class: "hbs2-t-foot hbs2-muted" },
@@ -216,9 +236,12 @@ function timeline(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
 
 // GitHub's merge box, for a maintainer: hidden until the clone says it signs
 // as one, since a button that can only be refused is worse than none.
-function mergeBox(onto: string, land: () => void, can: Promise<boolean> | undefined): HTMLElement {
+function mergeBox(onto: string, land: () => void, can: Promise<boolean> | undefined, record?: () => void): HTMLElement {
   const go = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Merge pull request");
   go.addEventListener("click", () => land());
+  // A merge made with git or on GitHub is not this button's; it is recorded.
+  const elsewhere = record ? el("button", { type: "button", class: "hbs2-gear hbs2-elsewhere" }, "Merged it elsewhere? Record the merge") : null;
+  elsewhere?.addEventListener("click", () => record?.());
   const box = el("div", { class: "hbs2-merge" },
     el("span", { class: "hbs2-ev-badge is-open-pr" }, iconEl("pr-open")),
     el("div", { class: "hbs2-merge-box" },
@@ -226,7 +249,8 @@ function mergeBox(onto: string, land: () => void, can: Promise<boolean> | undefi
         el("strong", {}, "Merge it on hbs2"),
         el("span", { class: "hbs2-muted" },
           "A merge commit into ", branch(onto), " in your working clone, pushed, recorded in canon and published. "
-          + "You review exactly what it does first.")),
+          + "You review exactly what it does first."),
+        elsewhere),
       go));
   box.hidden = true;
   void (can ?? Promise.resolve(true)).then((yes) => { box.hidden = !yes; }, () => {});
@@ -306,6 +330,37 @@ function labelSection(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
     el("h3", { class: "hbs2-side-head" }, "Labels", gear), shown, panel);
 }
 
+// Who is looking, and for a maintainer: pick one of the participants or paste
+// a key, or unassign. Apply carries it to the window's review.
+function assigneeSection(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
+  const a = o.actions;
+  const shown = t.assignees.length
+    ? el("div", {}, ...t.assignees.map((k) => el("div", { class: "hbs2-side-person" }, identiconEl(k, 20), " ", short(k))))
+    : el("span", { class: "hbs2-muted" }, "No one assigned");
+  if (!a?.assign) return sideSection("Assignees", shown);
+  const assign = a.assign;
+  const input = el("input", { class: "hbs2-input hbs2-small-in", placeholder: "A key (base58)", value: t.assignees[0] ?? "" });
+  const people = [...new Set([t.author, ...t.comments.map((c) => c.author)])];
+  const picks = el("div", { class: "hbs2-side-faces" }, ...people.map((k) => {
+    const b = el("button", { type: "button", class: "hbs2-pick-face", title: k }, identiconEl(k, 24));
+    b.addEventListener("click", () => { input.value = k; });
+    return b;
+  }));
+  const apply = el("button", { type: "button", class: "hbs2-btn is-primary hbs2-small-btn" }, "Apply");
+  const none = el("button", { type: "button", class: "hbs2-btn hbs2-small-btn" }, "Unassign");
+  const cancel = el("button", { type: "button", class: "hbs2-btn hbs2-small-btn" }, "Cancel");
+  const panel = el("div", { class: "hbs2-label-edit" }, picks, input, el("div", { class: "hbs2-edit-actions" }, cancel, none, apply));
+  panel.hidden = true;
+  const gear = el("button", { type: "button", class: "hbs2-gear", title: "Edit the assignee" }, "Edit");
+  gear.hidden = true;
+  void (a.maintains ?? Promise.resolve(false)).then((yes) => { gear.hidden = !yes; }, () => {});
+  gear.addEventListener("click", () => { panel.hidden = !panel.hidden; shown.hidden = !panel.hidden; });
+  cancel.addEventListener("click", () => { panel.hidden = true; shown.hidden = false; });
+  apply.addEventListener("click", () => { if (input.value.trim()) assign(input.value.trim()); else input.focus(); });
+  none.addEventListener("click", () => assign(""));
+  return el("div", { class: "hbs2-side-sec" }, el("h3", { class: "hbs2-side-head" }, "Assignees", gear), shown, panel);
+}
+
 // What the author asked for, and for a maintainer the one click that grants it.
 // Only what is still asked for: a label already applied is no longer a request.
 function askedSection(t: ThreadDoc, o: ThreadViewOptions): HTMLElement | null {
@@ -335,9 +390,7 @@ function side(t: ThreadDoc, o: ThreadViewOptions): HTMLElement {
       el("p", { class: "hbs2-muted hbs2-small" }, "Review it locally: ",
         el("code", {}, `hbs2-hub pr checkout --number ${t.number ?? "?"}`))) : null,
     labelSection(t, o),
-    sideSection("Assignees", t.assignees.length
-      ? el("div", {}, ...t.assignees.map((a) => el("div", { class: "hbs2-side-person" }, identiconEl(a, 20), " ", short(a))))
-      : el("span", { class: "hbs2-muted" }, "No one assigned")),
+    assigneeSection(t, o),
     askedSection(t, o),
     sideSection("Participants", el("div", { class: "hbs2-side-faces" },
       ...[...new Set([t.author, ...t.comments.map((c) => c.author)])].map((k) => {
