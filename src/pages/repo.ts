@@ -72,16 +72,21 @@ async function main_(): Promise<void> {
   main.replaceChildren(head, progress);
   try {
     const writable = await canWrite();
-    const [issues, prs, role] = await Promise.all([
+    // The role only adds the maintainer's tabs, so the list does not wait on it.
+    const role = writable ? call("status", { repo: key, local: true }).then(roleOf, () => null) : Promise.resolve(null);
+    const [issues, prs] = await Promise.all([
       call("issue_list", { repo: key }, (p) => { progress.textContent = p; }).then(asIndex),
       call("pr_list", { repo: key }, (p) => { progress.textContent = p; }).then(asIndex),
-      writable ? call("status", { repo: key, local: true }).then(roleOf, () => null) : Promise.resolve(null),
     ]);
-    const maintainer = writable && role !== null && role.maintainer;
     const openOf = (rs: IndexRow[]) => rs.filter((t) => t.status === "open").length;
-    head = repoHeader(key, about, active, { gh, code: __WEB__, maintainer,
-                                            counts: { issues: openOf(issues.threads), pulls: openOf(prs.threads) } });
+    const counts = { issues: openOf(issues.threads), pulls: openOf(prs.threads) };
+    head = repoHeader(key, about, active, { gh, code: __WEB__, counts });
     main.replaceChildren(head, list(key, tab === "pr" ? prs.threads : issues.threads, writable));
+    void role.then((r) => {
+      if (!(writable && r !== null && r.maintainer)) return;
+      const next = repoHeader(key, about, active, { gh, code: __WEB__, maintainer: true, counts });
+      head.replaceWith(next); head = next;
+    });
     if (newerContract(issues)) head.after(el("p", { class: "warn" }, "The host speaks a newer contract than this page; update it."));
   } catch (e) {
     progress.textContent = e instanceof Error ? e.message : String(e);

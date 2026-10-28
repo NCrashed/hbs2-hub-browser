@@ -226,16 +226,24 @@ async function main_(): Promise<void> {
     const ref = q.get("ref") || str(refs["head"]) || "HEAD";
     // The tabs as on the issue page: the counts, and for a maintainer of a
     // local server the inbox and the maintainers. None of it holds the page up.
+    // The header is drawn bare and redrawn as each of these answers.
     const openIn = (tool: string) => call(tool, { repo: key }).then((v) => asIndex(v).threads.filter((t) => t.status === "open").length, () => undefined);
-    const [issues, pulls, maintainer] = await Promise.all([openIn("issue_list"), openIn("pr_list"),
-      canWrite().then((w) => w ? call("status", { repo: key, local: true }).then((v) => roleOf(v).maintainer, () => false) : false)]);
-    const head = repoHeader(key, about, "code", { code: true, maintainer,
-                                                 counts: { ...(issues !== undefined ? { issues } : {}), ...(pulls !== undefined ? { pulls } : {}) } });
+    const counts = Promise.all([openIn("issue_list"), openIn("pr_list")]);
+    const maintains = canWrite().then((w) => w ? call("status", { repo: key, local: true }).then((v) => roleOf(v).maintainer, () => false) : false);
     const body = view === "blob" ? await blobView(refs, ref)
       : view === "commits" ? await commitsView(refs, ref)
       : view === "commit" ? await commitView()
       : await treeView(refs, ref);
+    let head = repoHeader(key, about, "code", { code: true });
     main.replaceChildren(head, ...body);
+    let issues: number | undefined, pulls: number | undefined, maintainer = false;
+    const redraw = () => {
+      const next = repoHeader(key, about, "code", { code: true, maintainer,
+                                                   counts: { ...(issues !== undefined ? { issues } : {}), ...(pulls !== undefined ? { pulls } : {}) } });
+      head.replaceWith(next); head = next;
+    };
+    void counts.then(([i, p]) => { issues = i; pulls = p; redraw(); });
+    void maintains.then((m) => { if (m) { maintainer = true; redraw(); } });
   } catch (e) {
     main.replaceChildren(el("div", { class: "hbs2-flash is-error" }, e instanceof Error ? e.message : String(e)));
   }
