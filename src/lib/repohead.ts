@@ -45,7 +45,14 @@ export function repoHeader(key: string, about: About, active: Tab, o: {
       o.maintainer ? link("Maintainers", "file", `maintainers.html?${q({})}`, "maintainers") : null));
 }
 
-/** The name and description, or nothing: a host without the code view says neither. */
-export async function aboutRepo(key: string): Promise<About> {
-  try { return aboutOf(await call("code_refs", { repo: key })); } catch { return { name: null, description: null }; }
+/** The name and description, or nothing: a host without the code view says neither.
+ *  Asked once a page, however many parts of it want to know. */
+const abouts = new Map<string, Promise<About>>();
+export function aboutRepo(key: string): Promise<About> {
+  let a = abouts.get(key);
+  if (!a) {
+    a = call("code_refs", { repo: key }).then(aboutOf, () => ({ name: null, description: null }));
+    abouts.set(key, a);
+  }
+  return a;
 }
