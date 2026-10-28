@@ -9,6 +9,7 @@ import { call, canWrite } from "../lib/client.ts";
 import { roleOf } from "../lib/compose.ts";
 import { asIndex } from "../lib/docs.ts";
 import { siteBar } from "../lib/bar.ts";
+import { remember } from "../lib/recent.ts";
 import { parseDiff } from "../lib/diff.ts";
 import { el, markdownEl, shortKey } from "../lib/dom.ts";
 import { identiconEl } from "../lib/identicon.ts";
@@ -62,7 +63,7 @@ function branchPicker(refs: Obj, ref: string): HTMLElement {
 }
 
 // The newest commit that touched this place, as GitHub's box above a listing.
-function lastCommit(c: Obj, ref: string): HTMLElement {
+function lastCommit(c: Obj, ref: string, total: unknown): HTMLElement {
   const author = obj(c["author"]);
   const oid = str(c["oid"]);
   return el("div", { class: "hbs2-lastcommit" },
@@ -71,7 +72,12 @@ function lastCommit(c: Obj, ref: string): HTMLElement {
     el("span", { class: "hbs2-spacer" }),
     el("a", { href: href({ view: "commit", commit: oid }) }, el("code", {}, oid.slice(0, 7))),
     typeof c["committed_at"] === "number" ? el("span", { class: "hbs2-muted" }, ` \u00b7 ${ago(c["committed_at"])}`) : null,
-    el("a", { href: href({ view: "commits", ref, path }), class: "hbs2-history" }, iconEl("history"), " History"));
+    el("a", { href: href({ view: "commits", ref, path }), class: "hbs2-history" }, iconEl("history"), ` ${countText(total) ?? "History"}`));
+}
+
+// "1,234 commits", as GitHub's, or nothing when the server did not say.
+function countText(total: unknown): string | null {
+  return typeof total === "number" ? `${total.toLocaleString("en-US")} ${total === 1 ? "commit" : "commits"}` : null;
 }
 
 function readme(name: string, text: string): HTMLElement {
@@ -103,7 +109,7 @@ async function treeView(refs: Obj, ref: string): Promise<HTMLElement[]> {
   const parts: HTMLElement[] = [
     el("div", { class: "hbs2-codebar" }, branchPicker(refs, ref), crumbs(ref, path, false)),
     el("div", { class: "hbs2-filebox" },
-      top ? lastCommit(top, ref) : el("div", { class: "hbs2-lastcommit hbs2-muted" }, "No commits."),
+      top ? lastCommit(top, ref, log["total"]) : el("div", { class: "hbs2-lastcommit hbs2-muted" }, "No commits."),
       rows.length ? el("table", { class: "hbs2-files-table" }, el("tbody", {},
         ...(path ? [el("tr", {}, el("td", { class: "hbs2-ficon" }), el("td", {},
           el("a", { href: href({ ref, path: path.split("/").slice(0, -1).join("/") }) }, "..")), el("td", {}))] : []),
@@ -168,10 +174,13 @@ async function commitsView(refs: Obj, ref: string): Promise<HTMLElement[]> {
           typeof c["committed_at"] === "number" ? ` committed ${ago(c["committed_at"])}` : "")),
       el("div", { class: "hbs2-side" }, el("a", { href: href({ view: "commit", commit: oid }) }, el("code", {}, oid.slice(0, 7)))));
   });
-  const older = commits.length === 30 ? el("a", { href: href({ view: "commits", ref, path, skip: String(skip + 30) }), class: "hbs2-btn" }, "Older") : null;
+  const total = page["total"];
+  const more = typeof total === "number" ? skip + commits.length < total : commits.length === 30;
+  const older = more ? el("a", { href: href({ view: "commits", ref, path, skip: String(skip + 30) }), class: "hbs2-btn" }, "Older") : null;
   const newer = skip > 0 ? el("a", { href: href({ view: "commits", ref, path, skip: String(Math.max(0, skip - 30)) }), class: "hbs2-btn" }, "Newer") : null;
   return [
-    el("div", { class: "hbs2-codebar" }, branchPicker(refs, ref), el("h2", { class: "hbs2-commits-title" }, "Commits", path ? el("span", { class: "hbs2-muted" }, ` on ${path}`) : null)),
+    el("div", { class: "hbs2-codebar" }, branchPicker(refs, ref), el("h2", { class: "hbs2-commits-title" }, "Commits", path ? el("span", { class: "hbs2-muted" }, ` on ${path}`) : null,
+      countText(total) ? el("span", { class: "hbs2-muted hbs2-small" }, ` \u00b7 ${countText(total)}`) : null)),
     el("div", { class: "hbs2-listbox" }, rows.length ? el("ul", { class: "hbs2-rows" }, ...rows) : el("div", { class: "hbs2-empty" }, "No commits.")),
     el("div", { class: "hbs2-actions" }, newer, older),
   ];
@@ -207,6 +216,7 @@ async function commitView(): Promise<HTMLElement[]> {
 
 async function main_(): Promise<void> {
   if (!isRepoKey(key)) { main.replaceChildren(el("p", {}, "This link does not name a repository.")); return; }
+  remember(key);
   const progress = el("p", { class: "hbs2-muted" }, "loading");
   main.replaceChildren(progress);
   try {

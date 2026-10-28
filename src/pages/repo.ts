@@ -10,6 +10,7 @@ import { isRepoKey } from "../lib/pointer.ts";
 import { rowEl } from "../lib/rows.ts";
 import { iconEl } from "../lib/threadview.ts";
 import { siteBar } from "../lib/bar.ts";
+import { remember } from "../lib/recent.ts";
 import { aboutRepo, repoHeader } from "../lib/repohead.ts";
 
 const q = new URLSearchParams(location.search);
@@ -54,6 +55,7 @@ function list(key: string, rows: IndexRow[], writable: boolean): HTMLElement {
 async function main_(): Promise<void> {
   const key = await keyOf();
   siteBar(key);
+  if (key) remember(key);
   if (!key) {
     main.replaceChildren(el("p", {}, __WEB__
       ? "This link does not name a repository."

@@ -7,12 +7,31 @@ import { el, shortKey } from "../lib/dom.ts";
 import { identiconEl } from "../lib/identicon.ts";
 import { isRepoKey } from "../lib/pointer.ts";
 import { serverHello } from "../lib/web.ts";
+import { call } from "../lib/client.ts";
+import { aboutOf } from "../lib/repohead.ts";
+import { recent } from "../lib/recent.ts";
 
 siteBar(null, ".");
 const main = document.querySelector("main")!;
 
 function repoLink(key: string): string {
   return `./pages/code.html?${new URLSearchParams({ key })}`;
+}
+
+// A repository's line: its key at once, its name and description as soon as
+// its manifest answers (the code view's refs), and the key alone if it never does.
+function item(k: string): HTMLElement {
+  const name = el("a", { href: repoLink(k), title: k }, shortKey(k));
+  const desc = el("div", { class: "hbs2-muted hbs2-small" });
+  const line = el("div", { class: "hbs2-home-item" }, identiconEl(k, 32),
+    el("div", { class: "hbs2-home-text" }, name, desc,
+      el("div", { class: "hbs2-muted hbs2-small" }, el("code", {}, `hbs23://${k}`))));
+  void call("code_refs", { repo: k }).then((v) => {
+    const a = aboutOf(v);
+    if (a.name) name.replaceChildren(el("bdi", {}, a.name));
+    if (a.description) desc.replaceChildren(el("bdi", {}, a.description));
+  }, () => {});
+  return line;
 }
 
 async function load(): Promise<void> {
@@ -24,9 +43,8 @@ async function load(): Promise<void> {
     return;
   }
   const local = hello.mode === "local";
-  const items = hello.repos.map((k) => el("div", { class: "hbs2-home-item" }, identiconEl(k, 32),
-    el("div", {}, el("a", { href: repoLink(k) }, shortKey(k)),
-      el("div", { class: "hbs2-muted hbs2-small" }, el("code", {}, `hbs23://${k}`)))));
+  const items = hello.repos.map(item);
+  const lately = local ? recent().filter((k) => !hello.repos.includes(k)) : [];
   const parts: HTMLElement[] = [
     el("h1", {}, local ? "Your repositories" : "Repositories"),
     items.length ? el("div", { class: "hbs2-home-list" }, ...items)
@@ -34,6 +52,7 @@ async function load(): Promise<void> {
           ? "No working clone is named yet: `git config --global hbs2-hub.<key>.clone <dir>` names one. Any repository can be opened below."
           : "This server shows no repository."),
   ];
+  if (lately.length) parts.push(el("h2", {}, "Recently viewed"), el("div", { class: "hbs2-home-list" }, ...lately.map(item)));
   if (local) {
     const input = el("input", { class: "hbs2-input", placeholder: "hbs23://<repository key>, or the key" });
     const go = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Open");
