@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mayCall, toolInfo } from "../src/lib/protocol.ts";
+import { mayCall, pagePath, toolInfo } from "../src/lib/protocol.ts";
 import type { ToolInfo } from "../src/lib/protocol.ts";
 
 const table = new Map<string, ToolInfo>([
@@ -26,4 +26,10 @@ test("a tool row reads readOnlyHint and nothing looser", () => {
   assert.deepEqual(toolInfo({ name: "a", title: "A", annotations: { readOnlyHint: true } }), { name: "a", title: "A", readOnly: true });
   assert.equal(toolInfo({ name: "b", annotations: { readOnlyHint: "yes" } })?.readOnly, false);
   assert.equal(toolInfo({ title: "no name" }), null);
+});
+
+test("Inbox is an extension page of its own, never a thread fallback", () => {
+  assert.equal(pagePath("inbox"), "pages/inbox.html");
+  assert.equal(pagePath("repo"), "pages/repo.html");
+  assert.equal(pagePath("thread"), "pages/thread.html");
 });

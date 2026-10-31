@@ -5,6 +5,7 @@ import { call } from "./client.ts";
 import { el, shortKey } from "./dom.ts";
 import { identiconEl } from "./identicon.ts";
 import { iconEl } from "./threadview.ts";
+import type { RepoCounts } from "./repostate.ts";
 import type { Json } from "./protocol.ts";
 
 export interface About { name: string | null; description: string | null }
@@ -20,7 +21,7 @@ export type Tab = "code" | "issues" | "pulls" | "inbox" | "maintainers";
 
 export function repoHeader(key: string, about: About, active: Tab, o: {
   gh?: string;
-  counts?: { issues?: number; pulls?: number };
+  counts?: RepoCounts;
   maintainer?: boolean;
   /** The Code tab: only where the host shows code (the web build). */
   code?: boolean;
@@ -41,7 +42,7 @@ export function repoHeader(key: string, about: About, active: Tab, o: {
       o.code ? link("Code", "code", `code.html?${q({})}`, "code") : null,
       link("Issues", "issue-open", `repo.html?${q({ tab: "issues" })}`, "issues", o.counts?.issues),
       link("Pull requests", "pr-open", `repo.html?${q({ tab: "pulls" })}`, "pulls", o.counts?.pulls),
-      o.maintainer ? link("Inbox", "comment", `inbox.html?${q({})}`, "inbox") : null,
+      o.maintainer ? link("Inbox", "comment", `inbox.html?${q({})}`, "inbox", o.counts?.inbox) : null,
       o.maintainer ? link("Maintainers", "file", `maintainers.html?${q({})}`, "maintainers") : null));
 }
 
