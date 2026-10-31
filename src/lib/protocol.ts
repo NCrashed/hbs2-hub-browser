@@ -46,6 +46,19 @@ export type Ask =
   /** Close the connection to the host, so the next call starts the one installed now. */
   | { kind: "restart" };
 
+export type Page = Extract<Ask, { kind: "open" }>["page"];
+
+/** One explicit extension document per page. Keep this exhaustive: treating a
+ * new page as a thread is how an Inbox click once reached the thread parser. */
+export function pagePath(page: Page): string {
+  switch (page) {
+    case "repo": return "pages/repo.html";
+    case "thread": return "pages/thread.html";
+    case "compose": return "pages/compose.html";
+    case "inbox": return "pages/inbox.html";
+  }
+}
+
 /** What the background worker tells a GitHub tab. */
 export interface TabNote {
   kind: "hbs2-changed";

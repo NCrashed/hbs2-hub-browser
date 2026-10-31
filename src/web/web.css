@@ -10,6 +10,9 @@ body { background: var(--bgColor-default, #fff); }
 .hbs2-crumb { display: inline-flex; gap: 8px; color: var(--fgColor-muted, #59636e); }
 .hbs2-crumb code { background: none; font-size: 14px; padding: 0; color: var(--fgColor-default, #1f2328); }
 .hbs2-spacer { flex: 1; }
+.hbs2-sync { border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px; padding: 4px 10px; background: var(--bgColor-default, #fff); color: var(--fgColor-default, #1f2328); cursor: pointer; }
+.hbs2-sync:hover { background: var(--bgColor-neutral-muted, #afb8c133); }
+.hbs2-sync:disabled { color: var(--fgColor-muted, #59636e); cursor: wait; }
 .hbs2-mode { font-size: 12px; padding: 2px 8px; border-radius: 2em; border: 1px solid var(--borderColor-default, #d1d9e0); color: var(--fgColor-muted, #59636e); }
 .hbs2-mode.is-public { color: var(--fgColor-accent, #0969da); border-color: currentColor; }
 .hbs2-mode.is-local { color: var(--fgColor-success, #1a7f37); border-color: currentColor; }

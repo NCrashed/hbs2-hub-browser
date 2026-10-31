@@ -12,6 +12,7 @@ import { iconEl } from "../lib/threadview.ts";
 import { siteBar } from "../lib/bar.ts";
 import { remember } from "../lib/recent.ts";
 import { aboutRepo, repoHeader } from "../lib/repohead.ts";
+import { countsWithInbox } from "../lib/repostate.ts";
 
 const q = new URLSearchParams(location.search);
 const main = document.querySelector("main")!;
@@ -84,7 +85,8 @@ async function main_(): Promise<void> {
     main.replaceChildren(head, list(key, tab === "pr" ? prs.threads : issues.threads, writable));
     void role.then((r) => {
       if (!(writable && r !== null && r.maintainer)) return;
-      const next = repoHeader(key, about, active, { gh, code: __WEB__, maintainer: true, counts });
+      const next = repoHeader(key, about, active,
+        { gh, code: __WEB__, maintainer: true, counts: countsWithInbox(counts, r.waiting) });
       head.replaceWith(next); head = next;
     });
     if (newerContract(issues)) head.after(el("p", { class: "warn" }, "The host speaks a newer contract than this page; update it."));

@@ -1,5 +1,5 @@
 // The one connection to `hbs2-hub native-host`, and the rule about who may ask it what.
-import { HOST_NAME, mayCall, toolInfo } from "./lib/protocol.ts";
+import { HOST_NAME, mayCall, pagePath, toolInfo } from "./lib/protocol.ts";
 import type { Answer, Envelope, HostReply, Json, TabNote, ToolInfo } from "./lib/protocol.ts";
 import { parsePointer, pointerUrl } from "./lib/pointer.ts";
 
@@ -127,7 +127,7 @@ chrome.runtime.onConnect.addListener((p) => {
         await chrome.windows.create({ url: chrome.runtime.getURL("pages/compose.html") + "?" + params.toString(),
                                       type: "popup", width: 820, height: 860 });
       } else {
-        const path = q.page === "repo" ? "pages/repo.html" : q.page === "inbox" ? "pages/inbox.html" : "pages/thread.html";
+        const path = pagePath(q.page);
         const params = new URLSearchParams(q.params);
         const tab = p.sender?.tab?.id;
         if (q.page === "inbox" && tab !== undefined) params.set("tab", String(tab));

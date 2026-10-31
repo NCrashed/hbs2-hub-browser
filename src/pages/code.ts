@@ -16,6 +16,7 @@ import { identiconEl } from "../lib/identicon.ts";
 import { isRepoKey } from "../lib/pointer.ts";
 import { ago } from "../lib/query.ts";
 import { aboutOf, repoHeader } from "../lib/repohead.ts";
+import { countsWithInbox } from "../lib/repostate.ts";
 import { fileBox, iconEl } from "../lib/threadview.ts";
 import type { Json } from "../lib/protocol.ts";
 
@@ -229,21 +230,22 @@ async function main_(): Promise<void> {
     // The header is drawn bare and redrawn as each of these answers.
     const openIn = (tool: string) => call(tool, { repo: key }).then((v) => asIndex(v).threads.filter((t) => t.status === "open").length, () => undefined);
     const counts = Promise.all([openIn("issue_list"), openIn("pr_list")]);
-    const maintains = canWrite().then((w) => w ? call("status", { repo: key, local: true }).then((v) => roleOf(v).maintainer, () => false) : false);
+    const role = canWrite().then((w) => w ? call("status", { repo: key, local: true }).then(roleOf, () => null) : null);
     const body = view === "blob" ? await blobView(refs, ref)
       : view === "commits" ? await commitsView(refs, ref)
       : view === "commit" ? await commitView()
       : await treeView(refs, ref);
     let head = repoHeader(key, about, "code", { code: true });
     main.replaceChildren(head, ...body);
-    let issues: number | undefined, pulls: number | undefined, maintainer = false;
+    let issues: number | undefined, pulls: number | undefined, maintainer = false, waiting: number | null = null;
     const redraw = () => {
+      const countsWithThreads = { ...(issues !== undefined ? { issues } : {}), ...(pulls !== undefined ? { pulls } : {}) };
       const next = repoHeader(key, about, "code", { code: true, maintainer,
-                                                   counts: { ...(issues !== undefined ? { issues } : {}), ...(pulls !== undefined ? { pulls } : {}) } });
+                                                   counts: countsWithInbox(countsWithThreads, waiting) });
       head.replaceWith(next); head = next;
     };
     void counts.then(([i, p]) => { issues = i; pulls = p; redraw(); });
-    void maintains.then((m) => { if (m) { maintainer = true; redraw(); } });
+    void role.then((r) => { if (r?.maintainer) { maintainer = true; waiting = r.waiting; redraw(); } });
   } catch (e) {
     main.replaceChildren(el("div", { class: "hbs2-flash is-error" }, e instanceof Error ? e.message : String(e)));
   }
