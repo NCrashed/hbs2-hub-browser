@@ -15,6 +15,7 @@ import { isRepoKey } from "../lib/pointer.ts";
 import { siteBar } from "../lib/bar.ts";
 import { ago } from "../lib/query.ts";
 import { identiconEl } from "../lib/identicon.ts";
+import { acceptedPullNumber, acceptedPullUrl } from "../lib/acceptance.ts";
 
 const q = new URLSearchParams(location.search);
 const main = document.querySelector("main")!;
@@ -46,30 +47,64 @@ function header(n: number | null): HTMLElement {
     el("div", { class: "hbs2-edit-actions" }, people, refresh));
 }
 
+async function acceptedPullNotice(tool: string, d: LetterDoc): Promise<HTMLElement | null> {
+  if (tool !== "inbox_accept" || d.pr === null) return null;
+  let number: number | null = null;
+  try {
+    number = acceptedPullNumber(d, asIndex(await call("pr_list", { repo })).threads);
+  } catch { /* the accept succeeded; a failed refresh must not say otherwise */ }
+  return el("div", {},
+    el("p", {}, number === null
+      ? "The pull request is now in canon. It is not merged yet."
+      : `Pull request #${number} is now in canon. It is not merged yet.`),
+    number === null
+      ? el("a", { class: "hbs2-btn", href: `repo.html?${new URLSearchParams({ key: repo, ...(gh ? { gh } : {}), tab: "pulls" })}` }, "Open pull requests")
+      : el("a", { class: "hbs2-btn is-primary", href: acceptedPullUrl(repo, gh, number) }, "Review and merge"));
+}
+
+interface AnswerRun {
+  letter: LetterDoc;
+  card: HTMLElement;
+  panel: HTMLElement;
+  result: HTMLElement;
+  yes: HTMLButtonElement;
+  no: HTMLButtonElement;
+}
+
+async function runAnswer(
+  view: AnswerRun,
+  tool: string,
+  args: { [k: string]: string | boolean },
+  publish: boolean,
+  doneText: string,
+): Promise<void> {
+  view.yes.disabled = view.no.disabled = true;
+  const rejecting = tool === "inbox_reject";
+  const out = await rehearse(view.result, {
+    tool, args, publish: publish ? repo : null,
+    sign: rejecting ? "Reject it" : publish ? "Sign and publish" : "Sign",
+    warn: rejecting ? "The letter is dropped from the mailbox for every peer; it cannot be brought back." : CANON_WARN,
+  });
+  if (out === null) { view.yes.disabled = view.no.disabled = false; return; }
+  await changed(tab, repo).catch(() => {});
+  view.card.classList.add("is-done");
+  const accepted = await acceptedPullNotice(tool, view.letter);
+  view.panel.replaceChildren(el("div", { class: "hbs2-flash is-ok" },
+    el("strong", {}, doneText), accepted, el("pre", { class: "hbs2-out" }, out)));
+}
+
 // The verbs a letter can be answered with, each rehearsed before it signs.
-function answer(l: QueueLetter, card: HTMLElement, panel: HTMLElement): HTMLElement {
+function answer(l: QueueLetter, d: LetterDoc, card: HTMLElement, panel: HTMLElement): HTMLElement {
   const op = OPS[l.op ?? ""] ?? { label: l.op ?? "letter", verb: "accept" as const };
   const yes = el("button", { type: "button", class: "hbs2-btn is-primary" }, op.verb === "honour" ? "Honour" : "Accept");
   const no = el("button", { type: "button", class: "hbs2-btn" }, "Reject");
   const silent = el("input", { type: "checkbox" });
   const result = el("div", { class: "hbs2-confirm" });
+  const view = { letter: d, card, panel, result, yes, no };
 
-  const run = async (tool: string, args: { [k: string]: string | boolean }, publish: boolean, doneText: string) => {
-    yes.disabled = no.disabled = true;
-    const out = await rehearse(result, {
-      tool, args, publish: publish ? repo : null,
-      sign: tool === "inbox_reject" ? "Reject it" : publish ? "Sign and publish" : "Sign",
-      warn: tool === "inbox_reject" ? "The letter is dropped from the mailbox for every peer; it cannot be brought back." : CANON_WARN,
-    });
-    if (out === null) { yes.disabled = no.disabled = false; return; }
-    await changed(tab, repo).catch(() => {});
-    card.classList.add("is-done");
-    panel.replaceChildren(el("div", { class: "hbs2-flash is-ok" }, el("strong", {}, doneText), el("pre", { class: "hbs2-out" }, out)));
-  };
-
-  yes.addEventListener("click", () => void run(op.verb === "honour" ? "inbox_honour" : "inbox_accept",
+  yes.addEventListener("click", () => void runAnswer(view, op.verb === "honour" ? "inbox_honour" : "inbox_accept",
     { repo, message: l.message }, true, op.verb === "honour" ? "Honoured and published." : "Accepted and published."));
-  no.addEventListener("click", () => void run("inbox_reject",
+  no.addEventListener("click", () => void runAnswer(view, "inbox_reject",
     { repo, message: l.message, ...(silent.checked ? { silent: true } : {}) }, false, "Rejected."));
 
   return el("div", { class: "hbs2-answer" },
@@ -140,7 +175,7 @@ function card(l: QueueLetter, threads: Threads): HTMLElement {
       const d = asLetter(await call("inbox_show", { repo, message: l.message }));
       panel.replaceChildren(letterBody(d), d.folded
         ? el("p", { class: "hbs2-muted" }, "Already in canon; nothing to do but reject the copy.")
-        : el("div", {}), answer(l, box, panel));
+        : el("div", {}), answer(l, d, box, panel));
     } catch (e) {
       loaded = false;
       panel.replaceChildren(refusal(e));
