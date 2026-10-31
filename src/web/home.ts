@@ -10,6 +10,7 @@ import { serverHello } from "../lib/web.ts";
 import { call } from "../lib/client.ts";
 import { aboutOf } from "../lib/repohead.ts";
 import { recent } from "../lib/recent.ts";
+import { operatorStatusOf, sizeText, type OperatorLease, type OperatorStatus } from "../lib/operator.ts";
 
 siteBar(null, ".");
 const main = document.querySelector("main")!;
@@ -34,6 +35,40 @@ function item(k: string): HTMLElement {
   return line;
 }
 
+function leaseItem(lease: OperatorLease): HTMLElement {
+  const details = lease.snapshot
+    ? `${sizeText(lease.snapshot.bytes)} complete; ${lease.snapshot.blocks} blocks`
+    : `${sizeText(lease.maxBytes)} reserved; no complete snapshot`;
+  return el("div", { class: "hbs2-lease-item" },
+    el("div", { class: `hbs2-lease-state is-${lease.state}` }, lease.state),
+    el("div", { class: "hbs2-home-text" },
+      el("a", { href: repoLink(lease.repository), title: lease.repository }, shortKey(lease.repository)),
+      el("div", { class: "hbs2-muted hbs2-small" }, details),
+      lease.error ? el("div", { class: "hbs2-small hbs2-danger" }, lease.error) : null));
+}
+
+function operatorPanel(status: OperatorStatus): HTMLElement {
+  const capacity = status.capacity;
+  const capacityBody = capacity
+    ? el("div", { class: "hbs2-capacity" },
+        el("div", {}, el("b", {}, sizeText(capacity.budgetBytes)), el("span", { class: "hbs2-muted" }, " donated")),
+        el("progress", { max: String(capacity.budgetBytes || 1), value: String(capacity.reservedBytes) }),
+        el("div", { class: "hbs2-muted hbs2-small" },
+          `${sizeText(capacity.reservedBytes)} reserved; ${sizeText(capacity.availableBytes)} available; ${capacity.contracts}/${capacity.maxContracts} contracts`))
+    : el("div", { class: "hbs2-flash is-error" }, status.capacityError ?? "The local peer did not report donated capacity.");
+  const leases = status.leases === null
+    ? el("div", { class: "hbs2-flash is-error" }, status.leasesError ?? "The local peer did not report its leases.")
+    : status.leases.length
+      ? el("div", { class: "hbs2-lease-list" }, ...status.leases.map(leaseItem))
+      : el("p", { class: "hbs2-muted" }, "No repository leases are using this node.");
+  const config = status.configuration;
+  return el("section", { class: "hbs2-operator" },
+    el("h2", {}, "Donated repository storage"), capacityBody,
+    config ? el("p", { class: "hbs2-muted hbs2-small" }, "Configure with ",
+      el("code", {}, config.budgetKey), " and ", el("code", {}, config.contractsKey), "; ", config.apply, ".") : null,
+    el("h2", {}, "Repository leases"), leases);
+}
+
 async function load(): Promise<void> {
   let hello;
   try {
@@ -54,6 +89,12 @@ async function load(): Promise<void> {
   ];
   if (lately.length) parts.push(el("h2", {}, "Recently viewed"), el("div", { class: "hbs2-home-list" }, ...lately.map(item)));
   if (local) {
+    const operator = el("section", {}, el("h2", {}, "Donated repository storage"), el("p", { class: "hbs2-muted" }, "Reading local peer capacity..."));
+    parts.push(operator);
+    void call("lease_status", {}).then((value) => operator.replaceWith(operatorPanel(operatorStatusOf(value))), (error) => {
+      operator.replaceChildren(el("h2", {}, "Donated repository storage"),
+        el("div", { class: "hbs2-flash is-error" }, error instanceof Error ? error.message : String(error)));
+    });
     const input = el("input", { class: "hbs2-input", placeholder: "hbs23://<repository key>, or the key" });
     const go = el("button", { type: "button", class: "hbs2-btn is-primary" }, "Open");
     const err = el("div", {});

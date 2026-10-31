@@ -26,3 +26,13 @@ body { background: var(--bgColor-default, #fff); }
 
 .hbs2-home-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .hbs2-home-text > a { font-size: 15px; }
+.hbs2-operator { margin-top: 24px; }
+.hbs2-capacity, .hbs2-lease-list { border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px; padding: 16px; }
+.hbs2-capacity progress { display: block; width: 100%; height: 10px; margin: 10px 0; accent-color: var(--fgColor-accent, #0969da); }
+.hbs2-lease-list { padding: 0; }
+.hbs2-lease-item { display: grid; grid-template-columns: 90px minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px 16px; }
+.hbs2-lease-item + .hbs2-lease-item { border-top: 1px solid var(--borderColor-default, #d1d9e0); }
+.hbs2-lease-state { font-size: 12px; font-weight: 600; text-align: center; padding: 3px 8px; border: 1px solid currentColor; border-radius: 2em; color: var(--fgColor-muted, #59636e); }
+.hbs2-lease-state.is-active { color: var(--fgColor-success, #1a7f37); }
+.hbs2-lease-state.is-degraded, .hbs2-lease-state.is-grace { color: var(--fgColor-danger, #d1242f); }
+.hbs2-danger { color: var(--fgColor-danger, #d1242f); }
