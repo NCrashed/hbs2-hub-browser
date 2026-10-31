@@ -4,7 +4,12 @@
 .hbs2-repo-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 0 0 8px; }
 .hbs2-repo-head h1 { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 400; margin: 0; word-break: break-all; }
 .hbs2-repo-head h1 strong { font-weight: 600; }
+.hbs2-repo-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .hbs2-clone { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 5px 12px; border: 1px solid var(--borderColor-default, #d1d9e0); border-radius: 6px; background: var(--bgColor-muted, #f6f8fa); }
+.hbs2-replication { font-size: 12px; font-weight: 600; padding: 4px 9px; border: 1px solid currentColor; border-radius: 999px; white-space: nowrap; }
+.hbs2-replication.is-ready { color: var(--fgColor-open, #1a7f37); background: var(--bgColor-open-muted, #dafbe1); }
+.hbs2-replication.is-at-risk { color: var(--fgColor-danger, #d1242f); background: var(--bgColor-danger-muted, #ffebe9); }
+.hbs2-replication.is-unknown { color: var(--fgColor-muted, #59636e); background: var(--bgColor-muted, #f6f8fa); }
 .hbs2-repo-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--borderColor-default, #d1d9e0); margin: 16px 0; }
 .hbs2-repo-tabs a {
   display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 14px; text-decoration: none;

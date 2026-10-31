@@ -5,7 +5,8 @@ import { call } from "./client.ts";
 import { el, shortKey } from "./dom.ts";
 import { identiconEl } from "./identicon.ts";
 import { iconEl } from "./threadview.ts";
-import type { RepoCounts } from "./repostate.ts";
+import { replicationText } from "./repostate.ts";
+import type { RepoCounts, Replication } from "./repostate.ts";
 import type { Json } from "./protocol.ts";
 
 export interface About { name: string | null; description: string | null }
@@ -19,10 +20,23 @@ export function aboutOf(refs: Json): About {
 
 export type Tab = "code" | "issues" | "pulls" | "inbox" | "maintainers";
 
+function replicationBadge(replication: Replication): HTMLElement {
+  const title = replication.kind === "ready"
+    ? `Verified provider ${replication.provider}; advert${replication.expiresAt === null ? "" : ` expires ${new Date(replication.expiresAt * 1000).toLocaleString()}`}. This is a proved lower bound, not a network-wide total.`
+    : replication.kind === "at-risk"
+      ? "No reachable, verified, live replica advert was found. The owner may still be online."
+      : replication.reason ?? "The local peer could not determine replica availability.";
+  return el("span", {
+    class: `hbs2-replication is-${replication.kind}`,
+    title,
+  }, replicationText(replication));
+}
+
 export function repoHeader(key: string, about: About, active: Tab, o: {
   gh?: string;
   counts?: RepoCounts;
   maintainer?: boolean;
+  replication?: Replication;
   /** The Code tab: only where the host shows code (the web build). */
   code?: boolean;
 }): HTMLElement {
@@ -37,7 +51,9 @@ export function repoHeader(key: string, about: About, active: Tab, o: {
       el("div", {},
         el("h1", {}, identiconEl(key, 24), " ", title),
         about.description ? el("p", { class: "hbs2-repo-desc" }, el("bdi", {}, about.description)) : null),
-      el("code", { class: "hbs2-clone", title: "clone it" }, `git clone hbs23://${key}`)),
+      el("div", { class: "hbs2-repo-actions" },
+        o.replication ? replicationBadge(o.replication) : null,
+        el("code", { class: "hbs2-clone", title: "clone it" }, `git clone hbs23://${key}`))),
     el("nav", { class: "hbs2-repo-tabs" },
       o.code ? link("Code", "code", `code.html?${q({})}`, "code") : null,
       link("Issues", "issue-open", `repo.html?${q({ tab: "issues" })}`, "issues", o.counts?.issues),

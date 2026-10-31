@@ -12,7 +12,8 @@ import { iconEl } from "../lib/threadview.ts";
 import { siteBar } from "../lib/bar.ts";
 import { remember } from "../lib/recent.ts";
 import { aboutRepo, repoHeader } from "../lib/repohead.ts";
-import { countsWithInbox } from "../lib/repostate.ts";
+import { countsWithInbox, replicationOf } from "../lib/repostate.ts";
+import type { Replication } from "../lib/repostate.ts";
 
 const q = new URLSearchParams(location.search);
 const main = document.querySelector("main")!;
@@ -75,6 +76,11 @@ async function main_(): Promise<void> {
     const writable = await canWrite();
     // The role only adds the maintainer's tabs, so the list does not wait on it.
     const role = writable ? call("status", { repo: key, local: true }).then(roleOf, () => null) : Promise.resolve(null);
+    // Replica discovery is intentionally non-local: its answer is the live,
+    // authenticated provider selected by the peer.  It updates the header
+    // after the issue lists render rather than holding up the repository page.
+    const replication = call("status", { repo: key })
+      .then(replicationOf, () => ({ kind: "unknown", reason: null } as Replication));
     const [issues, prs] = await Promise.all([
       call("issue_list", { repo: key }, (p) => { progress.textContent = p; }).then(asIndex),
       call("pr_list", { repo: key }, (p) => { progress.textContent = p; }).then(asIndex),
@@ -83,12 +89,24 @@ async function main_(): Promise<void> {
     const counts = { issues: openOf(issues.threads), pulls: openOf(prs.threads) };
     head = repoHeader(key, about, active, { gh, code: __WEB__, counts });
     main.replaceChildren(head, list(key, tab === "pr" ? prs.threads : issues.threads, writable));
+    let maintains = false;
+    let replica: Replication | undefined;
+    const redrawHeader = () => {
+      const next = repoHeader(key, about, active, {
+        gh, code: __WEB__, maintainer: maintains,
+        counts: maintains ? countsWithInbox(counts, lastWaiting) : counts,
+        replication: replica,
+      });
+      head.replaceWith(next); head = next;
+    };
+    let lastWaiting: number | null = null;
     void role.then((r) => {
       if (!(writable && r !== null && r.maintainer)) return;
-      const next = repoHeader(key, about, active,
-        { gh, code: __WEB__, maintainer: true, counts: countsWithInbox(counts, r.waiting) });
-      head.replaceWith(next); head = next;
+      maintains = true;
+      lastWaiting = r.waiting;
+      redrawHeader();
     });
+    void replication.then((r) => { replica = r; redrawHeader(); });
     if (newerContract(issues)) head.after(el("p", { class: "warn" }, "The host speaks a newer contract than this page; update it."));
   } catch (e) {
     progress.textContent = e instanceof Error ? e.message : String(e);
